@@ -1,0 +1,10 @@
+{
+  "advancements.projectaura.root.description": "Get an egg.",
+  "advancements.projectaura.root.title": "Test Advancement",
+
+  "auras.projectaura.fire": "Fire",
+
+  "item.projectaura.buddy": "Buddy",
+  "item.projectaura.fire_stick": "Fire Stick",
+  "itemGroup.projectaura.main": "Test Mod"
+}

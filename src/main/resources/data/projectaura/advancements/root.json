@@ -1,0 +1,37 @@
+{
+  "criteria": {
+    "has_egg": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "minecraft:egg"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png",
+    "description": {
+      "translate": "advancements.projectstarlight.root.description"
+    },
+    "frame": "task",
+    "hidden": false,
+    "icon": {
+      "item": "minecraft:egg"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.projectstarlight.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_egg"
+    ]
+  ]
+}

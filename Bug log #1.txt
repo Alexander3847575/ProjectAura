@@ -1,0 +1,49 @@
+Bug log #1
+
+I have decided to start keeping track of the big issues I've encountered, and how I've fixed them, mainly because they are REALLY HARD TO FIX.
+This both serves as a way to organize my troubleshooting progress and also demonstrate the eternal suffering that is programming. And maybe act as reference for people dealing with similar things.
+
+Issue outline:
+(The buffer is the part that shows how much damage was dealt before draining to match the current health)
+My first implementation of the buffer code for the health bar was crude and inefficient: it simply stored a position and decreased it every time the entity was ticked until it reached zero. Not only did this run *every tick the entity existed,* it was also capped by the TPS, resulting in terrible looking movement at framerates higher than 20 fps.
+
+So, the context is me trying to move the buffer position calcuation into the rendering code, to keep it up to par with framerate, and also simultanouly switch to a more sophisticated cubic easing (thank you R. Penner for your math I have had enOUgh of that).
+
+thus
+
+But why werent the values updating? I thought maybe it had to do with the class itself: making thinga static, referencing this, adding useless constructors in a desperate attempt to try *anything* that could make the values updaiting
+
+In the mist of break point after breakpoint I made a horrifyti==ing discovery: looking closely  at the object IDs in the debugger, it almost seemed like.. there were two different guardians? That can't be right. Well if I'm listening to the damage evwent to update the values, and there were multiple of the same entity being dmaged... it was possible this could be the cause. 
+
+I went to the Guardian class where the hurt() method was found, and placed a breakpoint. Bingo: the breakpoint triggered not once, but *three* times each time I punched the guardian. Over and over I noted down the object IDs and eventually thought to put down the stacktrace as well. It was then that I realized the rookie mistake I had made: the hurt method was called a total of three times. Once on the client side when the attack was called on the client, once on the server side where the interaction is registered, and then one final time on the client as the server sent over the information. It all matched up. This was.. a client server discrepancy.... 
+
+Let's summarize: the values weren't being updated for the entity renderer because the capability that the renderer references is attached to the client-side guardian entity, whereas the event occured on the serverside and thus the guardian that *that* referenced was the *server-side* guardian entity. Two seperate entities, two seperate capabilities.
+
+So now I am left with a choice: sync the cpabilities together with netowrking, move the method calls/capability to the client side where the renderer can reference it, or quit Java and never touch Minecraft again.
+
+Option one would require a whole new package's worth of code, and option two would require a lot of restructuring and Forge source code delving.
+
+So of course I picked option three. It's been nice knowing you guys, see you on the other side!
+
+
+
+LivingDamageEvent occurs on middle one; so does LivingHurtEvent
+
+onLivingDamage = guard@23283, cap@23195 25164
+
+
+===
+Guardian.hurt -> 
+
+tick.handleKeyinds.startAttack.attack.attack.hurt guard@23409 (cap@23182)
+ 
+poll. displatch (ServerBoundINteractPacket) guard@23283 (cap@23195)
+
+ClientBoundEntityInteractPacke
+t handleEntityEvent x3 guard@23409 (cap@23182)
+
+22732, 22852 mid
+22318, 22658
+
+
+
