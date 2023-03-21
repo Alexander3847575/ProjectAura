@@ -33,22 +33,4 @@ public class ServerEventHandler {
         }
     }
 
-    /**
-     * Previously, this hooked into
-     * @param event
-     */
-    @SubscribeEvent
-    public void onLivingHurt(LivingHurtEvent event) {
-        if (event.getEntity() instanceof LivingEntity) {
-
-            LivingEntity entity = event.getEntity();
-
-            HealthBarCapability healthBarCapability = CapabilityRegistry.getCapability(entity, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
-
-            if (healthBarCapability != null) {
-                healthBarCapability.addDecayDelay(2000);
-                healthBarCapability.startBufferAnimation();
-            }
-        }
-    }
 }

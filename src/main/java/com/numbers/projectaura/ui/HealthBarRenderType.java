@@ -8,20 +8,23 @@ import net.minecraft.resources.ResourceLocation;
 
 import static com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP;
 
-public class NeatRenderType extends RenderStateShard {
+/***
+ * Code from Neat, a mod which is made by Vaskii.
+ */
+public class HealthBarRenderType extends RenderStateShard {
 
     //https://github.com/UpcraftLP/Orderly/blob/master/src/main/resources/assets/orderly/textures/ui/default_health_bar.png
     public static final ResourceLocation HEALTH_BAR_TEXTURE = new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/health_bar_texture.png");
     public static final RenderType BAR_TEXTURE_TYPE = getHealthBarType();
 
-    private NeatRenderType(String string, Runnable r, Runnable r1) {
+    private HealthBarRenderType(String string, Runnable r, Runnable r1) {
         super(string, r, r1);
     }
 
     private static RenderType getHealthBarType() {
         RenderType.CompositeState renderTypeState = RenderType.CompositeState.builder()
                 .setShaderState(POSITION_COLOR_TEX_LIGHTMAP_SHADER)
-                .setTextureState(new TextureStateShard(NeatRenderType.HEALTH_BAR_TEXTURE, false, false))
+                .setTextureState(new TextureStateShard(HealthBarRenderType.HEALTH_BAR_TEXTURE, false, false))
                 .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                 .setLightmapState(LIGHTMAP)
                 .createCompositeState(false);

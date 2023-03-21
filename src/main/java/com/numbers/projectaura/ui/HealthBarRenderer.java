@@ -32,13 +32,16 @@ import javax.annotation.Nullable;
 import java.text.DecimalFormat;
 import java.util.*;
 
-import static com.numbers.projectaura.ui.NeatRenderType.BAR_TEXTURE_TYPE;
+import static com.numbers.projectaura.ui.HealthBarRenderType.BAR_TEXTURE_TYPE;
 
-
+/***
+ * Code based off Vaskii's mod Neat. Thanks!
+ */
 public class HealthBarRenderer {
 
     private static final int MAX_DIST = 24;
     private static final DecimalFormat HEALTH_FORMAT = new DecimalFormat("#.##");
+
     @Nullable
     private static Entity getEntityLookedAt(Entity e) {
         Entity foundEntity = null;
@@ -142,6 +145,10 @@ public class HealthBarRenderer {
 
         return true;
     }
+
+    // TODO: figure out if it's possible to scale the health bar based on distance from camera to be a constant size
+    //      make a param override for mobs where the health bar needs to be positioned differently, e.g. elder guardian, wither
+    //      render icons for auras
     public static void hookRender(Entity entity, PoseStack poseStack, MultiBufferSource buffers,
                                   Quaternionf cameraOrientation) {
         final Minecraft mc = Minecraft.getInstance();
@@ -155,15 +162,15 @@ public class HealthBarRenderer {
         // Constants
         final float globalScale = 0.0267F;
         final float textScale = 0.5F;
-        final int barHeight = 4;//CONF
         final boolean boss = isBoss(entity);
         final String name = entity.hasCustomName()
                 ? ChatFormatting.ITALIC + entity.getCustomName().getString()
                 : entity.getDisplayName().getString();
         final float nameLen = mc.font.width(name) * textScale;
+        final double vOffset = Math.min(entity.getBbHeight() * 1.5, entity.getBbHeight() + 0.4);
         //final float halfSize = Math.max(40, nameLen / 2.0F + 10.0F);//25 is CONF; plateSize
         poseStack.pushPose();
-        poseStack.translate(0, entity.getBbHeight() + 0.4, 0);// 0.6 is CONF; height Above
+        poseStack.translate(0, vOffset, 0);
         poseStack.mulPose(cameraOrientation);
         // Plate background, bars, and text operate with globalScale, but icons don't
         poseStack.pushPose();
@@ -180,36 +187,27 @@ public class HealthBarRenderer {
         }*/
         // Health Bar
         {
-            BarProperties properties = new BarProperties(
-                    40,
+            // 24 is a nice number; not sure what to actually multiply by to match bb dimensions
+            final BarProperties properties = new BarProperties(
+                    entity.getBbWidth() * 1.25F * 24,
                     4,
-                    0.125f,
-                    255,
+                    2,
+                    200,
                     0xF000F0
             );
 
             int color = getColor(living, false, boss); //CONF
-
-            // There are scenarios in vanilla where the current health
-            // can temporarily exceed the max health.
-
             VertexConsumer builder = buffers.getBuffer(BAR_TEXTURE_TYPE);
 
-            final float barLength = Math.max(properties.barLength(), nameLen / 2.0F + 10.0F);
-
-            final int bufferColor = 0xff000000 | 255 << 16 | 252 << 8 | 250;
             final HealthBarCapability cap = CapabilityRegistry.getCapability(living, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
 
-            cap.tickBufferPos();
-            float bufferbufferPos = cap.getBufferPos();
-
+            cap.tickBuffer(); //Unsafe but I think capability shoudl be regitered to all LivingENtity
+            float bufferPos = cap.getBufferPos();
             float healthPercent = cap.getHealthPercent();
 
-
-            renderHealthBar(barLength,0, healthPercent, color, properties, poseStack, builder); //Main Health Bar
-            renderHealthBar(barLength, healthPercent, bufferbufferPos, bufferColor, properties, poseStack, builder);
-            renderHealthBar(barLength, bufferbufferPos, 100, 0x00000000, properties, poseStack, builder); // Empty health bar
-
+            renderHealthBar(properties.barLength(), 0, healthPercent, color, 255,properties, poseStack, builder); //Main Health Bar
+            renderHealthBar(properties.barLength(), bufferPos, 100, 0x00000000, 170, properties, poseStack, builder); // Empty health bar
+            renderHealthBar(properties.barLength(), healthPercent, bufferPos, cap.getBlendedBufferColor(0x00000000), cap.getBlendedBufferAlpha(), properties, poseStack, builder); // Buffer
 
         }
         // Text
@@ -289,28 +287,31 @@ public class HealthBarRenderer {
         poseStack.popPose();
     }
 
+    private record BarProperties(float barLength, float barHeight, float capOffset, int alpha, int light) {
 
-    private record BarProperties(float barLength, float barHeight, float capPercentage, int alpha, int light) {
-        public static float capOffset;
         public static float bodyLength; //actually half
         public static float halfBarHeight;
         public static float slope;
 
         public BarProperties {
-            capOffset = barLength * capPercentage;
             bodyLength = barLength - capOffset;
             halfBarHeight = barHeight / 2f;
-            slope = halfBarHeight / capOffset;
+            slope = halfBarHeight / capOffset; // Having the bar height and cap offset at a 2:1 ratio means that the slope will be one, or an end cap angle of 45 degrees.
         }
     }
 
     /***
-     *
-     * @param from Percentage to start at
-     * @param to
-     * @param color 0xff000000 | r << 16 | g << 8 | b  is the int representation of an rgb color
+     *  Renders a health bar.
+     * @param length Length of the health bar (unknown units)
+     * @param from Percentage of the health bar to render from
+     * @param to Percentage of the health bar to render from
+     * @param color int representation of an rgb color
+     * @param alpha Alpha channel for the health bar
+     * @param properties A {@link BarProperties}.
+     * @param poseStack Parent {@link PoseStack}
+     * @param builder The {@link VertexConsumer} to use.
      */
-    private static void renderHealthBar(float length, float from, float to, int color, BarProperties properties, PoseStack poseStack, VertexConsumer builder) {
+    private static void renderHealthBar(float length, float from, float to, int color, int alpha, BarProperties properties, PoseStack poseStack, VertexConsumer builder) {
 
         if (from == to) {
             return;
@@ -329,7 +330,7 @@ public class HealthBarRenderer {
          *     C2                D3
          *     numbers indicate build order, found through testing
          *     height go up = vertex go down
-         *     so A would be 0, 0 and C would be 0, 4
+         *     so A would be (0, 0) and C would be (0, 4), although in actuality the bar is centered on 0 on the x-axis.
          */
 
 
@@ -337,8 +338,8 @@ public class HealthBarRenderer {
         // I think making them final means they will only be computed once, hopefully globally?
         Matrix4f lastPose = poseStack.last().pose();
 
-        float start = properties.barLength() * from * 0.02f - properties.barLength();
-        float end = properties.barLength() * to * 0.02f - properties.barLength();
+        float start = length * from * 0.02f - length;
+        float end = length * to * 0.02f - length;
 
         float bodyStart = Math.max(start, -properties.bodyLength);
         float bodyEnd = Math.min(end, properties.bodyLength);
@@ -351,17 +352,17 @@ public class HealthBarRenderer {
             float vOffset = -properties.slope * (start + properties.bodyLength);
             float vOffsetBase = 0;
 
-            // This culling might not be important
+            // This check might not be important
             if (end < -properties.bodyLength) {
                 vOffsetBase = -properties.slope * (end + properties.bodyLength);
             }
 
             float capBaseStart = Math.min(end, -properties.bodyLength);
 
-            builder.vertex(lastPose, start, vOffset, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, start, properties.barHeight - vOffset, 0.001F).color(r, g, b, properties.alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, capBaseStart, vOffsetBase, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, start, vOffset, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, start, properties.barHeight - vOffset, 0.001F).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
 
         }
 
@@ -378,23 +379,18 @@ public class HealthBarRenderer {
 
             float capBaseStart = Math.max(start, properties.bodyLength);
 
-            builder.vertex(lastPose, capBaseStart, vOffsetBase, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, end, properties.barHeight - vOffset, 0.001F).color(r, g, b, properties.alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, end, vOffset, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, end, properties.barHeight - vOffset, 0.001F).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, end, vOffset, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
 
         }
 
         // Body
-        builder.vertex(lastPose, bodyStart, 0, 0.001F).color(r, g, b, properties.alpha).uv(0.0F, 0.75F).uv2(properties.light).endVertex();
-        builder.vertex(lastPose, bodyStart, properties.barHeight, 0.001F).color(r, g, b, properties.alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
-        builder.vertex(lastPose, bodyEnd, properties.barHeight, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-        builder.vertex(lastPose, bodyEnd, 0, 0.001F).color(r, g, b, properties.alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
-
-        //TODO: move all not strictly rendering (i.e. health bar percentages) code to HealthBarCapability; this will allow for the implementation of the buffer indicator
-        // actually no that logic ashoul not bwe run every tick only when looking at entity for which there is a guars statement i guess the capability will literally just be for storage of previous health
-        //TODO: Reference ToroHealthBar to start creating the elemental damage indicators
-        //  dev mods to reduce or eliminatw build time
+        builder.vertex(lastPose, bodyStart, 0, 0.001F).color(r, g, b, alpha).uv(0.0F, 0.75F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyStart, properties.barHeight, 0.001F).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyEnd, properties.barHeight, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyEnd, 0, 0.001F).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
 
     }
 

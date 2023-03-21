@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Code from Neat, a mod which is made by Vaskii.
+ */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRendererMixin {
     @Shadow
@@ -30,7 +33,7 @@ public abstract class EntityRendererMixin {
             shift = At.Shift.AFTER
         )
     )
-    private void neat_renderHealthBar(Entity entity, double worldX, double worldY, double worldZ, float entityYRot, float partialTicks, PoseStack poseStack, MultiBufferSource buffers, int light, CallbackInfo ci) {
+    private void auraRender(Entity entity, double worldX, double worldY, double worldZ, float entityYRot, float partialTicks, PoseStack poseStack, MultiBufferSource buffers, int light, CallbackInfo ci) {
         if (CapabilityRegistry.getCapability(entity, CapabilityRegistry.HEALTH_BAR_CAPABILITY) != null) {
             HealthBarRenderer.hookRender(entity, poseStack, buffers, cameraOrientation());
         }
