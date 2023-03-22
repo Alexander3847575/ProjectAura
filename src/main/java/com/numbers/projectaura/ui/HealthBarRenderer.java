@@ -3,13 +3,13 @@ package com.numbers.projectaura.ui;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-
 import com.numbers.projectaura.capability.HealthBarCapability;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
@@ -17,9 +17,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobType;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -28,13 +30,13 @@ import org.joml.Quaternionf;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 
 import static com.numbers.projectaura.ui.HealthBarRenderType.BAR_TEXTURE_TYPE;
 
-/***
+/**
  * Code based off Vaskii's mod Neat. Thanks!
  */
 public class HealthBarRenderer {
@@ -138,7 +140,7 @@ public class HealthBarRenderer {
                 || living.isInvisible()) {
             return false;
         }
-        if (true && getEntityLookedAt(cameraEntity) != entity) { //CONF
+        if (false && getEntityLookedAt(cameraEntity) != entity) { //CONF
             return false;
         }
         var id = BuiltInRegistries.ENTITY_TYPE.getKey(living.getType());
@@ -149,6 +151,8 @@ public class HealthBarRenderer {
     // TODO: figure out if it's possible to scale the health bar based on distance from camera to be a constant size
     //      make a param override for mobs where the health bar needs to be positioned differently, e.g. elder guardian, wither
     //      render icons for auras
+    //      maybe override boss bar
+    //      config
     public static void hookRender(Entity entity, PoseStack poseStack, MultiBufferSource buffers,
                                   Quaternionf cameraOrientation) {
         final Minecraft mc = Minecraft.getInstance();
@@ -156,18 +160,20 @@ public class HealthBarRenderer {
             // TODO handle mob stacks properly
             return;
         }
-        if (!shouldShowPlate(entity, mc.gameRenderer.getMainCamera().getEntity())) {
+        Entity cameraEntity = mc.gameRenderer.getMainCamera().getEntity();
+        if (!shouldShowPlate(entity, cameraEntity)) {
             return;
         }
         // Constants
-        final float globalScale = 0.0267F;
-        final float textScale = 0.5F;
+        final float scaleModifier = 0.0267F/2;// 0.0267F;
+        double distance = cameraEntity.distanceTo(entity);
+        float globalScale = (float) (Math.max((distance/6) * scaleModifier, scaleModifier * 2)); // Adjust size of bar based on distance to entity
+
         final boolean boss = isBoss(entity);
         final String name = entity.hasCustomName()
                 ? ChatFormatting.ITALIC + entity.getCustomName().getString()
                 : entity.getDisplayName().getString();
-        final float nameLen = mc.font.width(name) * textScale;
-        final double vOffset = Math.min(entity.getBbHeight() * 1.5, entity.getBbHeight() + 0.4);
+        final double vOffset = Math.min(entity.getBbHeight() * 1.75, entity.getBbHeight() + 0.6);
         //final float halfSize = Math.max(40, nameLen / 2.0F + 10.0F);//25 is CONF; plateSize
         poseStack.pushPose();
         poseStack.translate(0, vOffset, 0);
@@ -186,18 +192,19 @@ public class HealthBarRenderer {
             builder.vertex(poseStack.last().pose(), halfSize + padding, -bgHeight, 0.01F).color(0, 0, 0, 64).uv(1.0F, 0.0F).uv2(light).endVertex();
         }*/
         // Health Bar
+        // 24 is a nice number; not sure what to actually multiply by to match bb dimensions
+        final BarProperties properties = new BarProperties(
+                entity.getBbWidth() * 24f + 0.4f,
+                6,
+                3,
+                200,
+                0xF000F0
+        );
+
         {
-            // 24 is a nice number; not sure what to actually multiply by to match bb dimensions
-            final BarProperties properties = new BarProperties(
-                    entity.getBbWidth() * 1.25F * 24,
-                    4,
-                    2,
-                    200,
-                    0xF000F0
-            );
 
             int color = getColor(living, false, boss); //CONF
-            VertexConsumer builder = buffers.getBuffer(BAR_TEXTURE_TYPE);
+            final VertexConsumer builder = buffers.getBuffer(BAR_TEXTURE_TYPE);
 
             final HealthBarCapability cap = CapabilityRegistry.getCapability(living, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
 
@@ -208,46 +215,53 @@ public class HealthBarRenderer {
             renderHealthBar(properties.barLength(), 0, healthPercent, color, 255,properties, poseStack, builder); //Main Health Bar
             renderHealthBar(properties.barLength(), bufferPos, 100, 0x00000000, 170, properties, poseStack, builder); // Empty health bar
             renderHealthBar(properties.barLength(), healthPercent, bufferPos, cap.getBlendedBufferColor(0x00000000), cap.getBlendedBufferAlpha(), properties, poseStack, builder); // Buffer
+            /*final VertexConsumer outlineBuilder = buffers.getBuffer(RenderType.lines());
 
+            final int outlineColor = 0xff000000 | 75 << 16 | 60 << 8 | 20;
+            // TODO: make outlines not be so visible at range
+            renderHealthBarOutline(properties.barLength, outlineColor, 150, properties, poseStack, outlineBuilder);*/
         }
         // Text
-        /*{
+        {
+            final float textScale = 1F;
+            final float nameLen = mc.font.width(name) * textScale;
+
             final int white = 0xFFFFFF;
             final int black = 0;
             // Name
             {
                 poseStack.pushPose();
-                poseStack.translate(-halfSize, -4.5F, 0F);
+                poseStack.translate(-nameLen / 2, -12F, 0F);
                 poseStack.scale(textScale, textScale, textScale);
-                mc.font.drawInBatch(name, 0, 0, white, false, poseStack.last().pose(), buffers, false, black, light);
+                mc.font.drawInBatch(name, 0, 0, white, false, poseStack.last().pose(), buffers, Font.DisplayMode.NORMAL, black, properties.light());
                 poseStack.popPose();
             }
             // Health values (and debug ID)
             {
-                final float healthValueTextScale = 0.75F * textScale;
+                final float healthValueTextScale = 0.25F * textScale;
                 poseStack.pushPose();
-                poseStack.translate(-halfSize, -4.5F, 0F);
+                poseStack.translate(-properties.bodyLength, -4.5F, 0F);
                 poseStack.scale(healthValueTextScale, healthValueTextScale, healthValueTextScale);
                 int hpTextHeight = 14; //CONF
-                if (true) {
+                if (false) {
                     String hpStr = HEALTH_FORMAT.format(living.getHealth());
-                    mc.font.drawInBatch(hpStr, 2, hpTextHeight, white, false, poseStack.last().pose(), buffers, false, black, light);
+                    mc.font.drawInBatch(hpStr, 2, hpTextHeight, white, false, poseStack.last().pose(), buffers, Font.DisplayMode.NORMAL, black, properties.light());
                 }
-                if (true) {
+                if (false) {
                     String maxHpStr = ChatFormatting.BOLD + HEALTH_FORMAT.format(living.getMaxHealth());
-                    mc.font.drawInBatch(maxHpStr, (int) (halfSize / healthValueTextScale * 2) - mc.font.width(maxHpStr) - 2, hpTextHeight, white, false, poseStack.last().pose(), buffers, false, black, light);
+                    mc.font.drawInBatch(maxHpStr, (int) (properties.bodyLength / healthValueTextScale * 2) - mc.font.width(maxHpStr) - 2, hpTextHeight, white, false, poseStack.last().pose(), buffers, Font.DisplayMode.NORMAL, black, properties.light());
                 }
-                if (true) {
+                if (false) {
                     String percStr = (int) (100 * living.getHealth() / living.getMaxHealth()) + "%";
-                    mc.font.drawInBatch(percStr, (int) (halfSize / healthValueTextScale) - mc.font.width(percStr) / 2.0F, hpTextHeight, white, false, poseStack.last().pose(), buffers, false, black, light);
+                    mc.font.drawInBatch(percStr, (int) (properties.bodyLength / healthValueTextScale) - mc.font.width(percStr) / 2.0F, hpTextHeight, white, false, poseStack.last().pose(), buffers, Font.DisplayMode.NORMAL, black, properties.light());
                 }
                 if (true && mc.options.renderDebug) {
                     var id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-                    mc.font.drawInBatch("ID: \"" + id + "\"", 0, hpTextHeight + 16, white, false, poseStack.last().pose(), buffers, false, black, light);
+                    mc.font.drawInBatch("ID: \"" + id + "\"", 0, hpTextHeight + 16, white, false, poseStack.last().pose(), buffers, Font.DisplayMode.NORMAL, black, properties.light());
                 }
                 poseStack.popPose();
             }
-        }*/
+        }
         poseStack.popPose(); // Remove globalScale
         // Icons
         {
@@ -257,7 +271,7 @@ public class HealthBarRenderer {
             float zShift = 0F;
             if (true) {
                 var icon = getIcon(living, boss);
-                renderIcon(icon, poseStack, buffers, globalScale, halfSize, iconOffset, zShift);
+                renderIcon(icon, poseStack, buffers, globalScale, properties.barLength(), iconOffset, zShift);
                 iconOffset += 5F;
                 zShift += zBump;
             }
@@ -271,13 +285,13 @@ public class HealthBarRenderer {
                 }
                 var iron = new ItemStack(Items.IRON_CHESTPLATE);
                 for (int i = 0; i < ironArmor; i++) {
-                    renderIcon(iron, poseStack, buffers, globalScale, halfSize, iconOffset, zShift);
+                    renderIcon(iron, poseStack, buffers, globalScale, properties.barLength(), iconOffset, zShift);
                     iconOffset += 1F;
                     zShift += zBump;
                 }
                 var diamond = new ItemStack(Items.DIAMOND_CHESTPLATE);
                 for (int i = 0; i < diamondArmor; i++) {
-                    renderIcon(diamond, poseStack, buffers, globalScale, halfSize, iconOffset, zShift);
+                    renderIcon(diamond, poseStack, buffers, globalScale, properties.barLength(), iconOffset, zShift);
                     iconOffset += 1F;
                     zShift += zBump;
                 }
@@ -300,7 +314,7 @@ public class HealthBarRenderer {
         }
     }
 
-    /***
+    /**
      *  Renders a health bar.
      * @param length Length of the health bar (unknown units)
      * @param from Percentage of the health bar to render from
@@ -322,7 +336,7 @@ public class HealthBarRenderer {
         int b = color & 0xFF;
 
 
-        /***
+        /**
          *      Vertex breakdown because I can't brain properly
          *     A1                B4
          *   L  /-------------\   R
@@ -394,7 +408,45 @@ public class HealthBarRenderer {
 
     }
 
-    private static void renderIcon(ItemStack icon, PoseStack poseStack, MultiBufferSource buffers, float globalScale, float halfSize, float leftShift, float zShift) {
+    /**
+     * Renders a solid health bar outline.
+     * @param length Length of the health bar
+     * @param color Color of the outline
+     * @param alpha Alpha of the outline
+     * @param properties Properties of the health bar
+     * @param poseStack {@link PoseStack} to render in
+     * @param builder {@link VertexConsumer} to build with (of {@link RenderType} LINES)
+     */
+    private static void renderHealthBarOutline(float length, int color, int alpha, BarProperties properties, PoseStack poseStack, VertexConsumer builder) {
+
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
+
+        Matrix4f lastPose = poseStack.last().pose();
+        // Slightly increase z-offset ato avoid fighting :)
+        final float zOffset = 0.000F;
+        builder.vertex(lastPose, -length, properties.halfBarHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+        builder.vertex(lastPose, -properties.bodyLength, properties.barHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+
+        builder.vertex(lastPose, -properties.bodyLength, properties.barHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+        builder.vertex(lastPose, properties.bodyLength, properties.barHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+
+        builder.vertex(lastPose, properties.bodyLength, properties.barHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+        builder.vertex(lastPose, length, properties.halfBarHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+
+        builder.vertex(lastPose, length, properties.halfBarHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+        builder.vertex(lastPose, properties.bodyLength, 0, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+
+        builder.vertex(lastPose, properties.bodyLength, 0, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+        builder.vertex(lastPose, -properties.bodyLength, 0, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+
+        builder.vertex(lastPose, -properties.bodyLength, 0, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+        builder.vertex(lastPose, -length, properties.halfBarHeight, zOffset).color(r, g, b, alpha).normal(poseStack.last().normal(), 1, 0, 0).endVertex();
+
+    }
+
+    private static void renderIcon(ItemStack icon, PoseStack poseStack, MultiBufferSource buffers, Level level, float globalScale, float halfSize, float leftShift, float zShift) {
         if (!icon.isEmpty()) {
             final float iconScale = 0.12F;
             poseStack.pushPose();
@@ -409,8 +461,8 @@ public class HealthBarRenderer {
             poseStack.scale(iconScale, iconScale, iconScale);
             poseStack.mulPose(Axis.YP.rotationDegrees(180F));
             Minecraft.getInstance().getItemRenderer()
-                    .renderStatic(icon, ItemTransforms.TransformType.NONE,
-                            0xF000F0, OverlayTexture.NO_OVERLAY, poseStack, buffers, 0);
+                    .renderStatic(icon, ItemDisplayContext.NONE,
+                            0xF000F0, OverlayTexture.NO_OVERLAY, poseStack, buffers, level, 0);
             poseStack.popPose();
         }
     }

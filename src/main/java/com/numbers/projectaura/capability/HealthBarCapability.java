@@ -4,18 +4,15 @@ import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import lombok.Getter;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-/***
+/**
  * This capability essentially acts as an interface between the entity (or rather, what happens to its health) and its health bar.
  * It is primarily used for calculations related to the buffer, which requires data tied to an entity that cannot be done in its renderer.
  *
@@ -46,7 +43,7 @@ public class HealthBarCapability {
     private final static long bufferEaseDuration = 750L; // Duration of animation in milliseconds
     private final static long flashDuration = 500L;
 
-    /***
+    /**
      * Called on LivingEntityTickEvent in {@link com.numbers.projectaura.event.ServerEventHandler}. Client side only.
      * Used for health calculations to avoid doing it on every client frame instead.
      * In addition, it detects changes in health so it can trigger the buffer animation, and eventually damage indicators.
@@ -104,7 +101,7 @@ public class HealthBarCapability {
 
             //this.bufferPos = cubicEaseIn(dt, this.bufferFrom, this.bufferTo, bufferEaseDuration);
             this.bufferAlpha = Math.round(cubicEaseIn(dt, 255, -255, bufferEaseDuration));
-            this.blendedBufferAlpha = Math.round(lerp(dt, this.bufferAlpha, 170 - this.bufferAlpha, bufferEaseDuration));
+            this.blendedBufferAlpha = Math.round(cubicEaseIn(dt, this.bufferAlpha, 170 - this.bufferAlpha, bufferEaseDuration));
 
             if (dt < flashDuration) {
                 this.bufferColor = cubicEaseInColor(dt, white, baseColor, flashDuration);
@@ -119,7 +116,7 @@ public class HealthBarCapability {
 
     }
 
-    /***
+    /**
      * Initiates buffer animation by setting the timestamp to track delta T, the goals (params) for easing functions, and the active flag.
      */
     public void startBufferAnimation() {
@@ -131,7 +128,7 @@ public class HealthBarCapability {
 
     // A ton of math stuff below here
 
-    /***
+    /**
      * Penner cubic easing.
      * @param t Delta time (ms)
      * @param b Begin, or the y-offset
@@ -143,6 +140,9 @@ public class HealthBarCapability {
         return c*(t/=d)*t*t + b;
     }
 
+    public static float  expoEaseIn(float t,float b , float c, float d) {
+        return (t==0) ? b : c * (float)Math.pow(2, 10 * (t/d - 1)) + b;
+    }
     // lerp stnads for linear interpolation :D
     public static float lerp (float t, float b , float c, float d) {
         return c*t/d + b;
@@ -178,7 +178,8 @@ public class HealthBarCapability {
 
     }
 
-    /***
+
+    /**
      * Blends the current color of the buffer with the background color to allow for smooth fading of the buffer into the background in conjuction with the alpha blend carried out in {@code tickBuffer()}.
      * @param bgColor The color to blend with, usually the background of the health bar.
      * @return the blended color

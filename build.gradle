@@ -8,15 +8,15 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
-        classpath 'org.spongepowered:mixingradle:0.7.+'
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: "${forgegradle_version}", changing: true
+        classpath "org.spongepowered:mixingradle:${mixingradle_version}"
     }
 } // Help I added this whole section because Mixins and I can't use Gradle
 
 plugins {
     id 'eclipse'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '5.1.+'
+    id 'net.minecraftforge.gradle' version "${forgegradle_version}"
 
     // Lombok :D
     id "io.freefair.lombok" version "6.6.3"
@@ -46,7 +46,7 @@ minecraft {
     //
     // Use non-default mappings at your own risk. They may not always work.
     // Simply re-run your setup task after changing the mappings to update your workspace.
-    mappings channel: 'official', version: '1.19.3'
+    mappings channel: 'official', version: "${minecraft_version}"
 
     // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg') // Currently, this location cannot be changed from the default.
 
@@ -169,11 +169,11 @@ dependencies {
     // The userdev artifact is a special name and will get all sorts of transformations applied to it.
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    annotationProcessor "org.spongepowered:mixin:${mixin_version}:processor"
 
     implementation fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}")
 
-    jarJar(group: 'com.tterrag.registrate', name: 'Registrate', version: "[MC1.19.3,MC1.20)")
+    jarJar(group: 'com.tterrag.registrate', name: 'Registrate', version: "[MC1.19.4,MC1.20)")
 
     // Real mod deobf dependency examples - these get remapped to your current mappings
 
