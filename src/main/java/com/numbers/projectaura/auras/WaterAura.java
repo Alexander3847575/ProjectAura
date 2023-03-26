@@ -8,8 +8,6 @@ public class WaterAura implements IElementalAura {
     public static final ResourceLocation ICON = new ResourceLocation(ProjectAura.MOD_ID, "textures/auras/water-blank.png");
     private static final int COLOR = 0xff000000 | 0 << 16 | 200 << 8 | 255;
 
-
-
     @Override
     public void renderAura() {
 
@@ -23,11 +21,6 @@ public class WaterAura implements IElementalAura {
     @Override
     public boolean isVisible() {
         return false;
-    }
-
-    @Override
-    public String getId() {
-        return null;
     }
 
     @Override

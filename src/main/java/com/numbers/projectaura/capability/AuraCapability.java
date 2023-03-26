@@ -32,7 +32,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     public AuraCapability() {
         // Populate
-        AuraRegistry.AURAS.get().getValues().stream().forEach(aura -> auras.put(aura, 0.0d));
+        //AuraRegistry.AURAS.get().getValues().stream().forEach(aura -> auras.put(aura, 0.0d));
     }
 
     /**
@@ -125,20 +125,21 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
     @Override
     public CompoundTag serializeNBT() {
         CompoundTag nbt = new CompoundTag();
-        AuraRegistry.AURAS.get().forEach((registeredAura) -> {
-            double auraValue = auras.get(registeredAura) == null ? 0 : auras.get(registeredAura);
-            nbt.putDouble(registeredAura.getId(), auraValue);
+        AuraRegistry.AURA_REGISTRY.getEntries().forEach((registeredAura) -> {
+            double auraValue = (auras.get(registeredAura.get()) == null) ? 0 : auras.get(registeredAura.get());
+            nbt.putDouble(registeredAura.getId().getPath(), auraValue);
         });
 
         return nbt;
     }
 
+    // TODO: client server value desync issue >:( should be syncing client and server caps anyways
     @Override
     public void deserializeNBT(CompoundTag nbt) {
-        AuraRegistry.AURAS.get().forEach((registeredAura) -> {
-            double auraValue = nbt.getDouble(registeredAura.getId());
+        AuraRegistry.AURA_REGISTRY.getEntries().forEach((registeredAura) -> {
+            double auraValue = nbt.getDouble(registeredAura.getId().getPath());
             if (auraValue != 0) {
-                auras.put(registeredAura, auraValue);
+                auras.put(registeredAura.get(), auraValue);
             }
         });
     }

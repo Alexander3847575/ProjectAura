@@ -154,7 +154,8 @@ public class HealthBarRenderer {
 
     // TODO: figure out if it's possible to scale the health bar based on distance from camera to be a constant size
     //      make a param override for mobs where the health bar needs to be positioned differently, e.g. elder guardian, wither
-    //      render icons for auras
+    //      render icons for auras - DONE
+    //      add element application animation, aura fade out flash (sine based)
     //      maybe override boss bar
     //      config
     public static void hookRender(Entity entity, PoseStack poseStack, MultiBufferSource buffers,
@@ -241,11 +242,11 @@ public class HealthBarRenderer {
 
             auraCapability.getAuras().entrySet().forEach((entry) -> {
                 // Center each icon with padding
-                float xOffset = ((iconSize + 1f) * (i.get() - ((aurasSize/2f) - 0.5f)));
+                float xOffset = ((iconSize + 1.5f) * (i.get() - ((aurasSize/2f) - 0.5f)));
                 final int iconColor = entry.getKey().getColor();
 
                 final VertexConsumer blurBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/blur.png")));
-                renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, xOffset -2, -1,0.003F, iconColor, 170, properties.light);
+                renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, xOffset -2, -1,0.003F, iconColor, 130, properties.light);
 
                 final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(entry.getKey().getIcon()));
                 renderColoredTexture(poseStack, iconBuilder, iconSize, xOffset, 0,0.002F, iconColor, 255, properties.light);

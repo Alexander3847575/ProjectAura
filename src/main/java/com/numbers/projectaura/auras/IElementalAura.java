@@ -19,8 +19,6 @@ public interface IElementalAura {
 
     boolean isVisible();
 
-    String getId();
-
     ResourceLocation getIcon();
 
     int getColor();
