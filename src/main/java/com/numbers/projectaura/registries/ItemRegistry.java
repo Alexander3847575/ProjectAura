@@ -1,6 +1,5 @@
 package com.numbers.projectaura.registries;
 
-import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.item.AuraApplicatorItem;
 import com.tterrag.registrate.util.entry.RegistryEntry;
 import net.minecraft.world.item.Item;
@@ -13,7 +12,11 @@ public class ItemRegistry {
             .properties(p -> p.stacksTo(1))
             .register();
 
-    public static final RegistryEntry<AuraApplicatorItem> FIRE_STICK = REGISTRATE.item("fire_stick", AuraApplicatorItem::new)
+    public static final RegistryEntry<AuraApplicatorItem> FIRE_STICK = REGISTRATE.item("fire_stick", (properties) -> new AuraApplicatorItem(() -> AuraRegistry.FIRE.get(), properties))
+            .properties(p -> p.stacksTo(1))
+            .register();
+
+    public static final RegistryEntry<AuraApplicatorItem> WATER_STICK = REGISTRATE.item("water_stick", (properties) -> new AuraApplicatorItem(() -> AuraRegistry.WATER.get(), properties))
             .properties(p -> p.stacksTo(1))
             .register();
 

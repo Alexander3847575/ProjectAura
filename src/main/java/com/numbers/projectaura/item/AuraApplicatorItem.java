@@ -1,7 +1,7 @@
 package com.numbers.projectaura.item;
 
+import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.capability.AuraCapability;
-import com.numbers.projectaura.registries.AuraRegistry;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -11,11 +11,15 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
+
+import java.util.function.Supplier;
 
 public class AuraApplicatorItem extends Item {
-    public AuraApplicatorItem(Properties p_41383_) {
+    // TODO: make this get the aura when it is registered? I know theres something else which needs finish registering AFTER something else gets registered
+    private Supplier<IElementalAura> aura;
+    public AuraApplicatorItem(Supplier<IElementalAura> aura, Properties p_41383_) {
         super(p_41383_);
+        this.aura = aura;
     }
 
     @Override
@@ -26,7 +30,7 @@ public class AuraApplicatorItem extends Item {
         if (capability != null) {
 
             player.getLevel().playLocalSound(player.getOnPos(), SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS, 0.5f, 0.5f, false);
-            capability.applyAura(AuraRegistry.FIRE.get(), 10.0d);
+            capability.applyAura(entity, this.aura.get(), 16.0d);
             return InteractionResult.SUCCESS;
 
         }else {

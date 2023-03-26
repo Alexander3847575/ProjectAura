@@ -5,10 +5,12 @@ buildscript {
             url = 'https://repo.spongepowered.org/repository/maven-public/'
             content { includeGroup "org.spongepowered" }
         }
+        maven { url = 'https://maven.parchmentmc.org' }
         mavenCentral()
     }
     dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: "${forgegradle_version}", changing: true
+        classpath 'org.parchmentmc:librarian:1.+'
         classpath "org.spongepowered:mixingradle:${mixingradle_version}"
     }
 } // Help I added this whole section because Mixins and I can't use Gradle
@@ -18,11 +20,14 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version "${forgegradle_version}"
 
+    //id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+
     // Lombok :D
     id "io.freefair.lombok" version "6.6.3"
 
 }
 apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'org.parchmentmc.librarian.forgegradle'
 
 version = mod_version
 group = 'com.3847575.projectaura' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
@@ -46,7 +51,7 @@ minecraft {
     //
     // Use non-default mappings at your own risk. They may not always work.
     // Simply re-run your setup task after changing the mappings to update your workspace.
-    mappings channel: 'official', version: "${minecraft_version}"
+    mappings channel: 'parchment', version: "1.19.3-${parchment_version}-${minecraft_version}"
 
     // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg') // Currently, this location cannot be changed from the default.
 
@@ -55,6 +60,9 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
+
+            // Allow for HMR with JBR
+            jvmArg "-XX:+AllowEnhancedClassRedefinition -XX:HotswapAgent=fatjar"
 
             // Recommended logging data for a userdev environment
             // The markers can be added/remove as needed separated by commas.

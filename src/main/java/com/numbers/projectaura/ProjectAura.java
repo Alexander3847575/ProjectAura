@@ -2,7 +2,10 @@ package com.numbers.projectaura;
 
 import com.mojang.logging.LogUtils;
 import com.numbers.projectaura.event.ServerEventHandler;
-import com.numbers.projectaura.registries.*;
+import com.numbers.projectaura.registries.AuraRegistry;
+import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.registries.ItemRegistry;
+import com.numbers.projectaura.registries.ReactionRegistry;
 import com.tterrag.registrate.Registrate;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
@@ -14,7 +17,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.NewRegistryEvent;
 import org.slf4j.Logger;
@@ -37,13 +40,14 @@ public class ProjectAura {
 
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        // Register custom aura and reaction registry
+        AuraRegistry.AURA_REGISTRY.register(bus);
+
         // Register all items
         ItemRegistry.register();
 
-        // Register custom aura registry
-        AuraRegistry.AURA_REGISTRY.register(bus);
-
         bus.addListener(EventPriority.LOWEST, ProjectAura::gatherData);
+        bus.addListener(EventPriority.LOW, ProjectAura::registerReactions);
         bus.addListener(CapabilityRegistry::registerCapabilities);
 
         // Register ourselves for server and other game events we are interested in
@@ -51,6 +55,11 @@ public class ProjectAura {
         MinecraftForge.EVENT_BUS.register(new ServerEventHandler());
         MinecraftForge.EVENT_BUS.addGenericListener(Entity.class, CapabilityRegistry::attachEntityCapability);
 
+    }
+
+    // idk it just needs to run after aura registration
+    public static void registerReactions(FMLLoadCompleteEvent e) {
+        ReactionRegistry.register();
     }
 
     @SubscribeEvent

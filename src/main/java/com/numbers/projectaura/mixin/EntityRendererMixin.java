@@ -2,7 +2,7 @@ package com.numbers.projectaura.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.numbers.projectaura.registries.CapabilityRegistry;
-import com.numbers.projectaura.ui.HealthBarRenderer;
+import com.numbers.projectaura.render.HealthBarRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.world.entity.Entity;

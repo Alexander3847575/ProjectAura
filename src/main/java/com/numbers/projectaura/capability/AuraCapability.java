@@ -1,13 +1,15 @@
 package com.numbers.projectaura.capability;
 
 import com.numbers.projectaura.ProjectAura;
-import com.numbers.projectaura.auras.ElementalAura;
+import com.numbers.projectaura.auras.IElementalAura;
+import com.numbers.projectaura.reactions.IElementalReaction;
+import com.numbers.projectaura.reactions.ReactionData;
 import com.numbers.projectaura.registries.AuraRegistry;
 import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.registries.ReactionRegistry;
 import lombok.Getter;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.common.capabilities.Capability;
@@ -18,14 +20,15 @@ import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     public static ResourceLocation ID = new ResourceLocation(ProjectAura.MOD_ID, "aura_capability");
     @Getter
-    public HashMap<ElementalAura, Double> auras = new HashMap<>();
+    public LinkedHashMap<IElementalAura, Double> auras = new LinkedHashMap<>();
 
     public AuraCapability() {
         // Populate
@@ -38,43 +41,76 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
      * <p>
      * TODO: make reactions fully data driven
      *
-     * @param auraType
-     *             The type of {@link ElementalAura} to apply.
+     * @param applied
+     *             The type of {@link IElementalAura} to apply.
      * @param applicationStrength
      *              The strength of the applied aura, in units.
      */
-    public void applyAura(ElementalAura auraType, double applicationStrength) {
+    public void applyAura(LivingEntity target, IElementalAura applied, double applicationStrength) {
 
         double remainingAura = applicationStrength;
 
-        // Cycle through all registered auras
-        for (Map.Entry<ElementalAura, Double> aura : auras.entrySet()) {
+        // Cycle through all registered auras, avoiding concurrent modification
+        Iterator<Map.Entry<IElementalAura, Double>> iterator = auras.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<IElementalAura, Double> aura = iterator.next();
 
-            // Make sure the aura exists
-            if (aura.getValue() != 0.0d) {
-
-                // Attempt a reaction
-                if (aura.getKey().react(auraType, aura.getValue(), remainingAura));
-
+            // Attempt a reaction
+            IElementalReaction reaction = ReactionRegistry.getReaction(applied, aura.getKey());
+            if (reaction == null){
+                continue;
             }
+            ReactionData result = reaction.react(ReactionData.builder()
+                    .inputAppliedStrength(remainingAura)
+                    .inputBaseStrength(aura.getValue())
+                    .target(target)
+                    .build());
+
+            // No need to update aura values or anything if the reaction failed
+            if (result.isFailed()) {
+                continue;
+            }
+
+            double outputBaseStrength = result.getOutputBaseStrength();
+            double outputAppliedStrength = result.getOutputAppliedStrength();
+
+            if (outputBaseStrength < 0.1d) {
+                // Immediately remove the base aura if it has run out
+                // TODO: make a removeAura method so the renderer can hook into that
+                iterator.remove();
+            } else {
+                // Update the base aura
+                aura.setValue(outputBaseStrength);
+            }
+
+            if (outputAppliedStrength < 0.1d) {
+                // Stop the reaction checks if there is no more aura to react
+                return;
+            }
+            remainingAura = outputAppliedStrength;
+
         }
 
+
         // Add remainder to the entity auras
-        auras.put(auraType, remainingAura);
+        auras.put(applied, remainingAura);
 
     }
 
     public void tick(LivingEntity entity) {
 
-        for (Map.Entry<ElementalAura, Double> aura : auras.entrySet()) {
+        // Avoic concurrent modification
+        Iterator<Map.Entry<IElementalAura, Double>> iterator = auras.entrySet().iterator();
 
+        while (iterator.hasNext()) {
+            Map.Entry<IElementalAura, Double> aura = iterator.next();
             double value = aura.getValue();
 
             if (value >= 0.1d) {
                 value -= 0.1d;
-                ProjectAura.LOGGER.debug(Component.translatable("auras." + ProjectAura.MOD_ID + "." + AuraRegistry.AURAS.get().getKey(aura.getKey()).getPath()).getString() + " @ " + aura.getValue().toString() + " on " + entity.getName().getString());
+                //ProjectAura.LOGGER.debug(Component.translatable("auras." + ProjectAura.MOD_ID + "." + AuraRegistry.AURAS.get().getKey(aura.getKey()).getPath()).getString() + " @ " + aura.getValue().toString() + " on " + entity.getName().getString());
             } else {
-                value = 0d;
+                iterator.remove();
             }
 
             aura.setValue(value);
@@ -82,20 +118,29 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     }
 
+    public void removeAura(IElementalAura aura) {
+        auras.remove(aura);
+    }
+
     @Override
     public CompoundTag serializeNBT() {
         CompoundTag nbt = new CompoundTag();
-        for (Map.Entry<ElementalAura, Double> aura : auras.entrySet()) {
-            nbt.putDouble(AuraRegistry.AURAS.get().getKey(aura.getKey()).getPath(), aura.getValue());
-        }
+        AuraRegistry.AURAS.get().forEach((registeredAura) -> {
+            double auraValue = auras.get(registeredAura) == null ? 0 : auras.get(registeredAura);
+            nbt.putDouble(registeredAura.getId(), auraValue);
+        });
+
         return nbt;
     }
 
     @Override
     public void deserializeNBT(CompoundTag nbt) {
-        for (Map.Entry<ElementalAura, Double> aura : auras.entrySet()) {
-            nbt.getDouble(AuraRegistry.AURAS.get().getKey(aura.getKey()).getPath());
-        }
+        AuraRegistry.AURAS.get().forEach((registeredAura) -> {
+            double auraValue = nbt.getDouble(registeredAura.getId());
+            if (auraValue != 0) {
+                auras.put(registeredAura, auraValue);
+            }
+        });
     }
 
     public static class AuraCapabilityProvider implements ICapabilityProvider, ICapabilitySerializable<CompoundTag>
