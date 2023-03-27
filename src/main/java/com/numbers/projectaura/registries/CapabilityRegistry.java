@@ -4,12 +4,13 @@ import com.numbers.projectaura.capability.AuraCapability;
 import com.numbers.projectaura.capability.HealthBarCapability;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.fml.DistExecutor;
 
 import javax.annotation.Nullable;
 
@@ -27,9 +28,11 @@ public class CapabilityRegistry {
     public static void attachEntityCapability(AttachCapabilitiesEvent<Entity> e) {
         if (e.getObject() instanceof LivingEntity) {
             e.addCapability(AuraCapability.ID, new AuraCapability.AuraCapabilityProvider());
-            e.addCapability(HealthBarCapability.ID, new HealthBarCapability.HealthBarCapabilityProvider());
-            if (e.getObject() instanceof Player) {
-            }
+
+            // Only add the health bar thing on the client
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
+                e.addCapability(HealthBarCapability.ID, new HealthBarCapability.HealthBarCapabilityProvider());
+            });
         }
     }
 

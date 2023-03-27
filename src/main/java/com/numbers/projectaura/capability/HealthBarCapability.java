@@ -51,11 +51,6 @@ public class HealthBarCapability {
      */
     public void tick(LivingEntity entity) {
 
-        // Only need to do these calcs on client
-        if (!entity.level.isClientSide()) {
-            return;
-        }
-
         float health = entity.getHealth();
 
         // No need to update healthRatios if it's the same, this way we trade a simple check and some variables for div operation and such?

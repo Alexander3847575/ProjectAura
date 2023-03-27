@@ -29,7 +29,7 @@ public class AuraApplicatorItem extends Item {
 
         if (capability != null) {
 
-            player.getLevel().playLocalSound(player.getOnPos(), SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS, 0.5f, 0.5f, false);
+            player.getLevel().playLocalSound(player.getOnPos(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 0.5f, 0.5f, false);
             capability.applyAura(entity, this.aura.get(), 16.0d);
             return InteractionResult.SUCCESS;
 

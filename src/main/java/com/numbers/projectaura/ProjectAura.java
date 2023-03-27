@@ -2,6 +2,7 @@ package com.numbers.projectaura;
 
 import com.mojang.logging.LogUtils;
 import com.numbers.projectaura.event.ServerEventHandler;
+import com.numbers.projectaura.registries.NetworkRegistry;
 import com.numbers.projectaura.registries.AuraRegistry;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import com.numbers.projectaura.registries.ItemRegistry;
@@ -15,16 +16,14 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.NewRegistryEvent;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(ProjectAura.MOD_ID)
-public class ProjectAura {
+public final class ProjectAura {
     // Define mod id in a common place for everything to reference
     public static final String MOD_ID = "projectaura";
 
@@ -46,6 +45,8 @@ public class ProjectAura {
         // Register all items
         ItemRegistry.register();
 
+        new NetworkRegistry().registerPackets();
+
         bus.addListener(EventPriority.LOWEST, ProjectAura::gatherData);
         bus.addListener(EventPriority.LOW, ProjectAura::registerReactions);
         bus.addListener(CapabilityRegistry::registerCapabilities);
@@ -62,10 +63,6 @@ public class ProjectAura {
         ReactionRegistry.register();
     }
 
-    @SubscribeEvent
-    protected void onCommonSetup(NewRegistryEvent event) {
-
-    }
 
     // Placeholder for future data generation; basic registration is done with Registrate
     public static void gatherData(GatherDataEvent event) {

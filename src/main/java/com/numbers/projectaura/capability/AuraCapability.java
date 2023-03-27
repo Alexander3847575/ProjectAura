@@ -2,10 +2,12 @@ package com.numbers.projectaura.capability;
 
 import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.auras.IElementalAura;
+import com.numbers.projectaura.network.AuraSyncMessage;
 import com.numbers.projectaura.reactions.IElementalReaction;
 import com.numbers.projectaura.reactions.ReactionData;
 import com.numbers.projectaura.registries.AuraRegistry;
 import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.registries.NetworkRegistry;
 import com.numbers.projectaura.registries.ReactionRegistry;
 import lombok.Getter;
 import net.minecraft.core.Direction;
@@ -17,6 +19,7 @@ import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,7 +35,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     public AuraCapability() {
         // Populate
-        //AuraRegistry.AURAS.get().getValues().stream().forEach(aura -> auras.put(aura, 0.0d));
+        //AuraRegistry.AURAS.get().getValues().stream().forEach(aura -> auras.put(aura, 0.0d))
     }
 
     /**
@@ -47,6 +50,11 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
      *              The strength of the applied aura, in units.
      */
     public void applyAura(LivingEntity target, IElementalAura applied, double applicationStrength) {
+
+        // Server handles all reaction stuff
+        if (target.level.isClientSide()) {
+            return;
+        }
 
         double remainingAura = applicationStrength;
 
@@ -97,7 +105,13 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     }
 
+    /**
+     * Auras are only ticked on the server
+     * @param entity
+     */
     public void tick(LivingEntity entity) {
+
+        boolean updated = false;
 
         // Avoic concurrent modification
         Iterator<Map.Entry<IElementalAura, Double>> iterator = auras.entrySet().iterator();
@@ -108,13 +122,31 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
             if (value >= 0.1d) {
                 value -= 0.1d;
+                aura.setValue(value);
                 //ProjectAura.LOGGER.debug(Component.translatable("auras." + ProjectAura.MOD_ID + "." + AuraRegistry.AURAS.get().getKey(aura.getKey()).getPath()).getString() + " @ " + aura.getValue().toString() + " on " + entity.getName().getString());
             } else {
                 iterator.remove();
             }
 
-            aura.setValue(value);
+            updated = true;
+
         }
+
+        // Don't send packets if nothing was updated lol
+        if (!updated) {
+            return;
+        }
+
+        // Update client
+        sendAuraUpdatePackets(entity);
+
+    }
+
+    /**
+     * Sends an update packet to all clients tracking the entity.
+     */
+    private void sendAuraUpdatePackets(LivingEntity entity) {
+        NetworkRegistry.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), new AuraSyncMessage(entity, this.auras));
 
     }
 
