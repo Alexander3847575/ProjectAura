@@ -1,6 +1,10 @@
 package com.numbers.projectaura.capability;
 
 import com.numbers.projectaura.ProjectAura;
+import com.numbers.projectaura.animation.Animation;
+import com.numbers.projectaura.animation.Eases;
+import com.numbers.projectaura.animation.component.AnimationComponent;
+import com.numbers.projectaura.event.EventHandler;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import lombok.Getter;
 import net.minecraft.core.Direction;
@@ -28,8 +32,6 @@ public class HealthBarCapability {
     public int bufferColor;
     @Getter
     public int bufferAlpha;
-    @Getter
-    public int blendedBufferAlpha;
     public static final int baseColor = 0xff000000 | 255 << 16 | 224 << 8 | 87;
     public static final int white = 0xff000000 | 255 << 16 | 255 << 8 | 255;
     private float bufferFrom = 100;
@@ -42,11 +44,49 @@ public class HealthBarCapability {
     private final static long decayDelay = 500L;
     private final static long bufferEaseDuration = 750L; // Duration of animation in milliseconds
     private final static long flashDuration = 500L;
+    private final Animation bufferAnimation = new Animation()
+            .addComponent(
+                    new AnimationComponent(
+                            new Eases.Ease(
+                                    Eases.CUBIC_EASE_IN,
+                                    255,
+                                    -255,
+                                    bufferEaseDuration
+                        )
+                    )
+            )
+            .addComponent(
+                    new AnimationComponent(
+                            new Eases.Ease(
+                                    Eases.COLOR_CUBIC_EASE_IN,
+                                    white,
+                                    baseColor,
+                                    flashDuration
+                            )
+                    )
+            )
+            .addComponent(
+                    new AnimationComponent(
+                            new Eases.DynamicEase(
+                                    () -> Eases.CUBIC_EASE_IN,
+                                    () -> bufferFrom,
+                                    ()-> bufferTo,
+                                    () -> (float) bufferEaseDuration
+                            )
+                    )
+            )
+            .setDuration(bufferEaseDuration)
+            .onFinish(() -> {
+                this.bufferPos = this.healthPercent;
+                this.bufferColor = white;
+                this.bufferAlpha = 0;
+                this.active = false;
+            });
 
     /**
-     * Called on LivingEntityTickEvent in {@link com.numbers.projectaura.event.ServerEventHandler}. Client side only.
+     * Called on LivingEntityTickEvent in {@link EventHandler}. Client side only.
      * Used for health calculations to avoid doing it on every client frame instead.
-     * In addition, it detects changes in health so it can trigger the buffer animation, and eventually damage indicators.
+     * In addition, it detects changes in health, so it can trigger the buffer animation, and eventually damage indicators.
      * @param entity Entity being ticked
      */
     public void tick(LivingEntity entity) {
@@ -65,7 +105,7 @@ public class HealthBarCapability {
         float damageTaken = this.prevHealth - health;
 
         if (damageTaken > 0) {
-            startBufferAnimation();
+            this.startBufferAnimation();
         } else { // We know that damageTaken cannot be 0 because of the previous guard statement
             this.bufferPos = this.healthPercent; // Move buffer to match health, mostly in the case of healing
         }
@@ -81,33 +121,13 @@ public class HealthBarCapability {
     // Updates buffer position, color, alpha
     public void tickBuffer() {
 
-        // Important to avoid as much processing as possible on idle frames, as well as the dt getting crazy big
-        if (!this.active) {
+        if (!bufferAnimation.isActive()) {
             return;
         }
 
-        // Delta time, or how much time has passed since the animation started
-        long dt = System.currentTimeMillis() - this.animationTimestamp;
-
-        if (dt < bufferEaseDuration) {
-
-            // swap these to switch between cubic easing and fade out mode
-            // TODO: config
-
-            //this.bufferPos = cubicEaseIn(dt, this.bufferFrom, this.bufferTo, bufferEaseDuration);
-            this.bufferAlpha = Math.round(cubicEaseIn(dt, 255, -255, bufferEaseDuration));
-            this.blendedBufferAlpha = Math.round(cubicEaseIn(dt, this.bufferAlpha, 170 - this.bufferAlpha, bufferEaseDuration));
-
-            if (dt < flashDuration) {
-                this.bufferColor = cubicEaseInColor(dt, white, baseColor, flashDuration);
-            }
-        } else {
-            // Reset all variables to the starting values for the next buffer update, and unset the active flag
-            this.bufferPos = this.healthPercent;
-            this.bufferColor = white;
-            this.bufferAlpha = 0;
-            this.active = false;
-        }
+        //TODO ITS NOT taking up the full anim duration istg idk why why aaaaaaaaaaaaaaaaaa
+        this.bufferAlpha = (int) bufferAnimation.getValueOfComponent(0);
+        this.bufferColor = (int) bufferAnimation.getValueOfComponent(1);
 
     }
 
@@ -117,73 +137,26 @@ public class HealthBarCapability {
     public void startBufferAnimation() {
         this.bufferFrom = this.bufferPos;
         this.bufferTo = this.healthPercent - this.bufferPos;
-        this.animationTimestamp = System.currentTimeMillis();
-        this.active = true;
+        this.bufferAnimation.start();
     }
 
-    // A ton of math stuff below here
-
-    /**
-     * Penner cubic easing.
-     * @param t Delta time (ms)
-     * @param b Begin, or the y-offset
-     * @param c Change (delta of function, NOT the function result @ d)
-     * @param d Duration of change (ms)
-     * @return
-     */
-    public static float cubicEaseIn(float t, float b , float c, float d) {
-        return c*(t/=d)*t*t + b;
+    public int getBlendedBufferColor(int bgColor) {
+        return blendColors(this.bufferColor, this.bufferAlpha, bgColor);
     }
-
-    public static float  expoEaseIn(float t,float b , float c, float d) {
-        return (t==0) ? b : c * (float)Math.pow(2, 10 * (t/d - 1)) + b;
+    public int getBlendedBufferAlpha(int bgAlpha) {
+        return Math.round(Eases.CUBIC_EASE_IN.ease(bufferAnimation.getDeltaTime(), this.bufferAlpha, 170 - this.bufferAlpha, bufferEaseDuration));
     }
-    // lerp stnads for linear interpolation :D
-    public static float lerp (float t, float b , float c, float d) {
-        return c*t/d + b;
-    }
-
-    // Lazy RGB space color interpolation
-    public static int lerpColor(float t, int b , int c, float d) {
-
-        final int ar = (b >> 16) & 0xFF;
-        final int ag = (b >> 8) & 0xFF;
-        final int ab = b & 0xFF;
-
-        final int br = (c >> 16) & 0xFF;
-        final int bg = (c >> 8) & 0xFF;
-        final int bb = c & 0xFF;
-
-        return 0xff000000 | Math.round(ar + (br - ar) * t/d) << 16 | Math.round(ag + (bg - ag) * t/d) << 8 | Math.round(ab + (bb - ab) * t/d);
-
-    }
-
-    // Lazy RGB space color interpolation but cubic
-    public static int cubicEaseInColor(float t, int b , int c, float d) {
-
-        final int ar = (b >> 16) & 0xFF;
-        final int ag = (b >> 8) & 0xFF;
-        final int ab = b & 0xFF;
-
-        final int br = (c >> 16) & 0xFF;
-        final int bg = (c >> 8) & 0xFF;
-        final int bb = c & 0xFF;
-
-        return 0xff000000 | Math.round(cubicEaseIn(t, ar, br - ar, d)) << 16 | Math.round(cubicEaseIn(t, ag, bg - ag, d)) << 8 | Math.round(cubicEaseIn(t, ab, bb - ab, d));
-
-    }
-
 
     /**
      * Blends the current color of the buffer with the background color to allow for smooth fading of the buffer into the background in conjuction with the alpha blend carried out in {@code tickBuffer()}.
      * @param bgColor The color to blend with, usually the background of the health bar.
      * @return the blended color
      */
-    public int getBlendedBufferColor(int bgColor) {
+    public static int blendColors(int overlayColor, int overlayAlpha, int bgColor) {
 
-        int ar = (this.bufferColor >> 16) & 0xFF;
-        int ag = (this.bufferColor >> 8) & 0xFF;
-        int ab = this.bufferColor & 0xFF;
+        int ar = (overlayColor >> 16) & 0xFF;
+        int ag = (overlayColor >> 8) & 0xFF;
+        int ab = overlayColor & 0xFF;
 
         int br = (bgColor >> 16) & 0xFF;
         int bg = (bgColor >> 8) & 0xFF;
@@ -194,8 +167,8 @@ public class HealthBarCapability {
         int cg = (ag * ag + bg * (255 - this.bufferAlpha)) / 255;
         int cb = (ab * ab + bb * (255 - this.bufferAlpha)) / 255;*/
 
-        int alpha = this.bufferAlpha + 1;
-        int inv_alpha = 256 - this.bufferAlpha;
+        int alpha = overlayAlpha + 1;
+        int inv_alpha = 256 - overlayAlpha;
 
         int cr = (alpha * ar + inv_alpha * br) >> 8;
         int cg = (alpha * ag + inv_alpha * bg) >> 8;

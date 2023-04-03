@@ -7,7 +7,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-public class ServerEventHandler {
+public class EventHandler {
 
     @SubscribeEvent
     public void onLivingTick(LivingEvent.LivingTickEvent event) {

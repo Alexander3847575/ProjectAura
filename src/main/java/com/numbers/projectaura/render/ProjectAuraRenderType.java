@@ -7,10 +7,11 @@ import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.OptionalDouble;
 import java.util.function.Function;
 
+import static com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR;
 import static com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP;
-import static com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_TEX;
 
 public class ProjectAuraRenderType extends RenderStateShard {
 
@@ -21,8 +22,8 @@ public class ProjectAuraRenderType extends RenderStateShard {
             POSITION_COLOR_TEX_LIGHTMAP,
             VertexFormat.Mode.QUADS,
             256,
-            true,
-            true,
+            false,
+            false,
             RenderType.CompositeState.builder()
                     .setShaderState(POSITION_COLOR_TEX_LIGHTMAP_SHADER)
                     .setTextureState(new TextureStateShard(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/health_bar_texture.png"), false, false))
@@ -31,37 +32,36 @@ public class ProjectAuraRenderType extends RenderStateShard {
                     .createCompositeState(false)
     );
 
-    private static final Function<ResourceLocation, RenderType> AURA_ICON_TYPE = Util.memoize((texture) -> RenderType.create(
-            "aura_icon_type",
-            POSITION_TEX,
-            VertexFormat.Mode.QUADS,
+    public static final RenderType OUTLINE_TYPE = RenderType.create(
+            "outline_type",
+            POSITION_COLOR,
+            VertexFormat.Mode.DEBUG_LINES,
             256,
-            true,
-            true,
+            false,
+            false,
             RenderType.CompositeState.builder()
                     .setShaderState(POSITION_TEX_SHADER)
-                    .setTextureState(new TextureStateShard(texture, false, false))
-                    .setTransparencyState(NO_TRANSPARENCY)
-                    .setLightmapState(NO_LIGHTMAP)
+                    .setLineState(new LineStateShard(OptionalDouble.empty()))
+                    .setLayeringState(NO_LAYERING)
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .setCullState(CULL)
                     .createCompositeState(false)
-    ));
-
-    public static RenderType auraIconType(ResourceLocation iconTexture) {
-        return AURA_ICON_TYPE.apply(iconTexture);
-    }
+    );
 
     private static final Function<ResourceLocation, RenderType> COLORED_TEX_TYPE = Util.memoize((texture) -> RenderType.create(
             "colored_tex_type",
             POSITION_COLOR_TEX_LIGHTMAP,
             VertexFormat.Mode.QUADS,
             256,
-            true,
-            true,
+            false,
+            false,
             RenderType.CompositeState.builder()
                     .setShaderState(POSITION_COLOR_TEX_LIGHTMAP_SHADER)
                     .setTextureState(new TextureStateShard(texture, false, true))
                     .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                     .setLightmapState(LIGHTMAP)
+                    .setWriteMaskState(WriteMaskStateShard.COLOR_WRITE)
                     .createCompositeState(false)
     ));
 

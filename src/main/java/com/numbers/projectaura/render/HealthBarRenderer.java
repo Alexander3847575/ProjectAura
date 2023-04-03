@@ -1,5 +1,6 @@
 package com.numbers.projectaura.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -138,6 +139,7 @@ public class HealthBarRenderer {
         if (!(entity instanceof LivingEntity living)) {
             return false;
         }
+
         float distance = living.distanceTo(cameraEntity);
         if (distance > MAX_DIST
                 || !living.hasLineOfSight(cameraEntity)
@@ -158,6 +160,8 @@ public class HealthBarRenderer {
     //      add element application animation, aura fade out flash (sine based)
     //      maybe override boss bar
     //      config
+    //      track entity combat time, fade in/out
+    //      move to gui render to render above fire and particles; will depth test still work?
     public static void hookRender(Entity entity, PoseStack poseStack, MultiBufferSource buffers,
                                   Quaternionf cameraOrientation) {
         final Minecraft mc = Minecraft.getInstance();
@@ -217,39 +221,41 @@ public class HealthBarRenderer {
             float bufferPos = cap.getBufferPos();
             float healthPercent = cap.getHealthPercent();
 
-            renderHealthBar(properties.barLength(), 0, healthPercent, color, 255,properties, poseStack, healthBarBuilder); //Main Health Bar
-            renderHealthBar(properties.barLength(), bufferPos, 100, 0x00000000, 170, properties, poseStack, healthBarBuilder); // Empty health bar
-            renderHealthBar(properties.barLength(), healthPercent, bufferPos, cap.getBlendedBufferColor(0x00000000), cap.getBlendedBufferAlpha(), properties, poseStack, healthBarBuilder); // Buffer
-            /*final VertexConsumer outlineBuilder = buffers.getBuffer(RenderType.lines());
+            renderHealthBar(0.003F, 0, healthPercent, color, 255, properties, poseStack, healthBarBuilder); //Main Health Bar
+            renderHealthBar(0.003F, bufferPos, 100, 0x00000000, 170, properties, poseStack, healthBarBuilder); // Empty health bar
+            renderHealthBar(0.001F, healthPercent, bufferPos, cap.getBlendedBufferColor(0), cap.getBlendedBufferAlpha(170), properties, poseStack, healthBarBuilder); // Buffer
 
+            final VertexConsumer outlineBuilder = buffers.getBuffer(ProjectAuraRenderType.OUTLINE_TYPE);
             final int outlineColor = 0xff000000 | 75 << 16 | 60 << 8 | 20;
-            // TODO: make outlines not be so visible at range
-            renderHealthBarOutline(properties.barLength, outlineColor, 150, properties, poseStack, outlineBuilder);*/
+            renderHealthBarOutline(properties.barLength, outlineColor, 150, properties, poseStack, outlineBuilder);
+
         }
         // Aura Icons
         {
             poseStack.pushPose();
-            /*RenderSystem.setShaderColor(1,1,1,1);
-            RenderSystem.setShaderTexture(0, new ResourceLocation(ProjectAura.MOD_ID, "textures/item/buddy.png"));
-            stack, drawx, drawy, texposx, tesposy, texdrawareax, texdrawareay, texsizex, texsizey
-            blit(poseStack, 0, 0, 0, 0, 16, 16, 16, 16);*/
+            RenderSystem.enableBlend();
+
             final AuraCapability auraCapability = CapabilityRegistry.getCapability(entity, CapabilityRegistry.AURA_CAPABILITY);
             poseStack.translate(-9, -30, 0);
             final int iconSize = 16;
 
-            AtomicInteger i = new AtomicInteger();
             int aurasSize = auraCapability.auras.size();
+            AtomicInteger i = new AtomicInteger();
 
+            // Render an icon for each aura applied to the entity
             auraCapability.getAuras().entrySet().forEach((entry) -> {
+
                 // Center each icon with padding
-                float xOffset = ((iconSize + 1.5f) * (i.get() - ((aurasSize/2f) - 0.5f)));
+                float xOffset = ((iconSize + 0.5f) * (i.get() - ((aurasSize/2f) - 0.5f)));
                 final int iconColor = entry.getKey().getColor();
 
+                // REnder slight glow effect behind icon
                 final VertexConsumer blurBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/blur.png")));
-                renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, xOffset -2, -1,0.003F, iconColor, 130, properties.light);
+                renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, xOffset -2, -1,0.01F, iconColor, 130, properties.light);
 
+                // Render icon
                 final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(entry.getKey().getIcon()));
-                renderColoredTexture(poseStack, iconBuilder, iconSize, xOffset, 0,0.002F, iconColor, 255, properties.light);
+                renderColoredTexture(poseStack, iconBuilder, iconSize, xOffset, 0, 0F, iconColor, 255, properties.light);
 
                 //renderAuraIcon(poseStack, iconBuilder, 16, xOffset);
 
@@ -353,8 +359,7 @@ public class HealthBarRenderer {
         }
     }
 
-    // TODO: pass in z-offset to see if the buffer can render above the bg so no need for alpha or color blending
-    //      figure out how neat handles their hp bar texture uvs just ignoring them for now
+    // TODO: this implementation doesn't need texture at all
     /**
      *  Renders a health bar.
      * @param length Length of the health bar (unknown units)
@@ -366,7 +371,7 @@ public class HealthBarRenderer {
      * @param poseStack Parent {@link PoseStack}
      * @param builder The {@link VertexConsumer} to use.
      */
-    private static void renderHealthBar(float length, float from, float to, int color, int alpha, BarProperties properties, PoseStack poseStack, VertexConsumer builder) {
+    private static void renderHealthBar(float zOffset, float from, float to, int color, int alpha, BarProperties properties, PoseStack poseStack, VertexConsumer builder) {
 
         if (from == to) {
             return;
@@ -393,8 +398,8 @@ public class HealthBarRenderer {
         // I think making them final means they will only be computed once, hopefully globally?
         Matrix4f lastPose = poseStack.last().pose();
 
-        float start = length * from * 0.02f - length;
-        float end = length * to * 0.02f - length;
+        float start = properties.barLength * from * 0.02f - properties.barLength;
+        float end = properties.barLength * to * 0.02f - properties.barLength;
 
         float bodyStart = Math.max(start, -properties.bodyLength);
         float bodyEnd = Math.min(end, properties.bodyLength);
@@ -414,10 +419,10 @@ public class HealthBarRenderer {
 
             float capBaseStart = Math.min(end, -properties.bodyLength);
 
-            builder.vertex(lastPose, start, vOffset, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, start, properties.barHeight - vOffset, 0.001F).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, capBaseStart, vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, start, properties.barHeight - vOffset, zOffset).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, zOffset).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, vOffsetBase, zOffset).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, start, vOffset, zOffset).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
 
         }
 
@@ -434,19 +439,19 @@ public class HealthBarRenderer {
 
             float capBaseStart = Math.max(start, properties.bodyLength);
 
-            builder.vertex(lastPose, capBaseStart, vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, end, properties.barHeight - vOffset, 0.001F).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
-            builder.vertex(lastPose, end, vOffset, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, vOffsetBase, zOffset).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, capBaseStart, properties.barHeight - vOffsetBase, zOffset).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, end, properties.barHeight - vOffset, zOffset).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
+            builder.vertex(lastPose, end, vOffset, zOffset).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
 
         }
 
         // Body
         //TODO: consistent vx build order
-        builder.vertex(lastPose, bodyStart, 0, 0.001F).color(r, g, b, alpha).uv(0.0F, 0.75F).uv2(properties.light).endVertex();
-        builder.vertex(lastPose, bodyStart, properties.barHeight, 0.001F).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
-        builder.vertex(lastPose, bodyEnd, properties.barHeight, 0.001F).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
-        builder.vertex(lastPose, bodyEnd, 0, 0.001F).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyStart, 0, zOffset).color(r, g, b, alpha).uv(0.0F, 0.75F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyStart, properties.barHeight, zOffset).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyEnd, properties.barHeight, zOffset).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(properties.light).endVertex();
+        builder.vertex(lastPose, bodyEnd, 0, zOffset).color(r, g, b, alpha).uv(1.0F, 0.75F).uv2(properties.light).endVertex();
 
     }
 
@@ -490,10 +495,10 @@ public class HealthBarRenderer {
 
     private static void renderAuraIcon(PoseStack poseStack, VertexConsumer builder, float iconSize, float xOffset) {
         Matrix4f lastPose = poseStack.last().pose();
-        builder.vertex(lastPose, xOffset, iconSize, 0.003F).uv(0.0F, 1.0F).endVertex();
-        builder.vertex(lastPose, xOffset + iconSize, iconSize, 0.003F).uv(1.0F, 1.0F).endVertex();
-        builder.vertex(lastPose, xOffset + iconSize, 0, 0.003F).uv(1.0F, 0.0F).endVertex();
-        builder.vertex(lastPose, xOffset, 0, 0.003F).uv(0.0F, 0.0F).endVertex();
+        builder.vertex(lastPose, xOffset, iconSize, 0.000F).uv(0.0F, 1.0F).endVertex();
+        builder.vertex(lastPose, xOffset + iconSize, iconSize, 0.000F).uv(1.0F, 1.0F).endVertex();
+        builder.vertex(lastPose, xOffset + iconSize, 0, 0.000F).uv(1.0F, 0.0F).endVertex();
+        builder.vertex(lastPose, xOffset, 0, 0.000F).uv(0.0F, 0.0F).endVertex();
     }
 
     private static void renderIcon(ItemStack icon, PoseStack poseStack, MultiBufferSource buffers, Level level, float globalScale, float halfSize, float leftShift, float zShift) {

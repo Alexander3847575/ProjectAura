@@ -1,7 +1,7 @@
 package com.numbers.projectaura;
 
 import com.mojang.logging.LogUtils;
-import com.numbers.projectaura.event.ServerEventHandler;
+import com.numbers.projectaura.event.EventHandler;
 import com.numbers.projectaura.registries.NetworkRegistry;
 import com.numbers.projectaura.registries.AuraRegistry;
 import com.numbers.projectaura.registries.CapabilityRegistry;
@@ -53,7 +53,7 @@ public final class ProjectAura {
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(new ServerEventHandler());
+        MinecraftForge.EVENT_BUS.register(new EventHandler());
         MinecraftForge.EVENT_BUS.addGenericListener(Entity.class, CapabilityRegistry::attachEntityCapability);
 
     }
