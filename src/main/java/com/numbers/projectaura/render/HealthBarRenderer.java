@@ -217,6 +217,7 @@ public class HealthBarRenderer {
 
             final HealthBarCapability cap = CapabilityRegistry.getCapability(living, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
 
+            assert cap != null;
             cap.tickBuffer(); //Unsafe but I think capability should be registered to all LivingEntities
             float bufferPos = cap.getBufferPos();
             float healthPercent = cap.getHealthPercent();

@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * This class represents a generic animation.
+ * This class represents a generic animation, that wraps around an interpolation function. It handles delays and states.
  */
 public class AnimationComponent {
 
@@ -17,7 +17,6 @@ public class AnimationComponent {
     private long absoluteComponentDuration;
     @Getter @Setter
     private boolean active;
-
 
     private float lastState;
 
@@ -38,7 +37,12 @@ public class AnimationComponent {
 
     }
 
-    public float getLastState(long dt) {
+    /**
+     * Gets the state of the component at a certain time. This will deactivate the component if it detects it is past its specified duration.
+     * @param dt Time since the beginning of the animation, in milliseconds
+     * @return The state of the component, or the point at which the interpolation is.
+     */
+    public float getState(long dt) {
 
         // If this component is not active, return the last known state
         if (!this.isActive()) {
@@ -47,7 +51,7 @@ public class AnimationComponent {
 
         // If this component has exceeded its specified duration, return
         if (dt > (this.absoluteComponentDuration)) {
-            this.setActive(false);
+            this.setActive(false); // So close to a pure function D:
             return this.lastState; // This should be the final state of the animation
         }
 
@@ -61,6 +65,9 @@ public class AnimationComponent {
 
     }
 
+    /**
+     * Activates the component.
+     */
     public void start() {
         this.setActive(true);
     }

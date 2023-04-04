@@ -24,26 +24,24 @@ import org.jetbrains.annotations.Nullable;
  */
 public class HealthBarCapability {
 
-    public static ResourceLocation ID = new ResourceLocation(ProjectAura.MOD_ID, "health_bar_capability");
+    // Constants
+    public static final ResourceLocation ID = new ResourceLocation(ProjectAura.MOD_ID, "health_bar_capability");
+    public static final int BASE_COLOR = 0xff000000 | 255 << 16 | 224 << 8 | 87;
+    public static final int WHITE = 0xff000000 | 255 << 16 | 255 << 8 | 255;
+    private static final long DECAY_DELAY = 500L;
+    private static final long EASE_DURATION = 750L; // Duration of animation in milliseconds
+    private static final long FLASH_DURATION = 500L;
 
+    @Getter
+    public float healthPercent;
+    private float prevHealth = 0;
     @Getter
     public float bufferPos = 100; //represents the percentage of health the buffer is at
     @Getter
     public int bufferColor;
     @Getter
     public int bufferAlpha;
-    public static final int baseColor = 0xff000000 | 255 << 16 | 224 << 8 | 87;
-    public static final int white = 0xff000000 | 255 << 16 | 255 << 8 | 255;
-    private float bufferFrom = 100;
-    private float bufferTo = 0;
-    @Getter
-    public float healthPercent;
-    private float prevHealth = 0;
-    private long animationTimestamp;
-    private boolean active = true;
-    private final static long decayDelay = 500L;
-    private final static long bufferEaseDuration = 750L; // Duration of animation in milliseconds
-    private final static long flashDuration = 500L;
+
     private final Animation bufferAnimation = new Animation()
             .addComponent(
                     new AnimationComponent(
@@ -51,7 +49,7 @@ public class HealthBarCapability {
                                     Eases.CUBIC_EASE_IN,
                                     255,
                                     -255,
-                                    bufferEaseDuration
+                                    EASE_DURATION
                         )
                     )
             )
@@ -59,28 +57,15 @@ public class HealthBarCapability {
                     new AnimationComponent(
                             new Eases.Ease(
                                     Eases.COLOR_CUBIC_EASE_IN,
-                                    white,
-                                    baseColor,
-                                    flashDuration
+                                    WHITE,
+                                    BASE_COLOR,
+                                    FLASH_DURATION
                             )
                     )
             )
-            .addComponent(
-                    new AnimationComponent(
-                            new Eases.DynamicEase(
-                                    () -> Eases.CUBIC_EASE_IN,
-                                    () -> bufferFrom,
-                                    ()-> bufferTo,
-                                    () -> (float) bufferEaseDuration
-                            )
-                    )
-            )
-            .setDuration(bufferEaseDuration)
+            .setDuration(EASE_DURATION)
             .onFinish(() -> {
                 this.bufferPos = this.healthPercent;
-                this.bufferColor = white;
-                this.bufferAlpha = 0;
-                this.active = false;
             });
 
     /**
@@ -105,7 +90,7 @@ public class HealthBarCapability {
         float damageTaken = this.prevHealth - health;
 
         if (damageTaken > 0) {
-            this.startBufferAnimation();
+            this.bufferAnimation.start();
         } else { // We know that damageTaken cannot be 0 because of the previous guard statement
             this.bufferPos = this.healthPercent; // Move buffer to match health, mostly in the case of healing
         }
@@ -119,39 +104,30 @@ public class HealthBarCapability {
 
     // CALLED EVERY CLIENT FRAME
     // Updates buffer position, color, alpha
+    // Decided to leave this mechanism in place as opposed to directly/indirectly referencing the animation from the outside
     public void tickBuffer() {
 
         if (!bufferAnimation.isActive()) {
             return;
         }
 
-        //TODO ITS NOT taking up the full anim duration istg idk why why aaaaaaaaaaaaaaaaaa
-        this.bufferAlpha = (int) bufferAnimation.getValueOfComponent(0);
-        this.bufferColor = (int) bufferAnimation.getValueOfComponent(1);
+        this.bufferAlpha = (int) bufferAnimation.getComponentValue(0);
+        this.bufferColor = (int) bufferAnimation.getComponentValue(1);
 
     }
 
     /**
-     * Initiates buffer animation by setting the timestamp to track delta T, the goals (params) for easing functions, and the active flag.
+     * Gets the blended color of the buffer with the background color to allow for smooth fading of the buffer into the background.
+     * @param bgColor The color to blend with, usually the background of the health bar.
+     * @return the blended color
      */
-    public void startBufferAnimation() {
-        this.bufferFrom = this.bufferPos;
-        this.bufferTo = this.healthPercent - this.bufferPos;
-        this.bufferAnimation.start();
-    }
-
     public int getBlendedBufferColor(int bgColor) {
         return blendColors(this.bufferColor, this.bufferAlpha, bgColor);
     }
     public int getBlendedBufferAlpha(int bgAlpha) {
-        return Math.round(Eases.CUBIC_EASE_IN.ease(bufferAnimation.getDeltaTime(), this.bufferAlpha, 170 - this.bufferAlpha, bufferEaseDuration));
+        return Math.round(Eases.CUBIC_EASE_IN.ease(bufferAnimation.getDeltaTime(), this.bufferAlpha, 170 - this.bufferAlpha, EASE_DURATION));
     }
 
-    /**
-     * Blends the current color of the buffer with the background color to allow for smooth fading of the buffer into the background in conjuction with the alpha blend carried out in {@code tickBuffer()}.
-     * @param bgColor The color to blend with, usually the background of the health bar.
-     * @return the blended color
-     */
     public static int blendColors(int overlayColor, int overlayAlpha, int bgColor) {
 
         int ar = (overlayColor >> 16) & 0xFF;

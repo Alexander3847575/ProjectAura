@@ -27,6 +27,9 @@ public final class Eases {
 
     }
 
+    /**
+     * A wrapper class for EaseMethods that stores its constants in an animation context.
+     */
     public static class Ease {
         private float beginning;
         private float change;
@@ -41,12 +44,21 @@ public final class Eases {
             this.duration = duration;
         }
 
+        /**
+         * Gets the state of the interpolation at a certain point in time.
+         * @param deltaTime Relative time of the interpolation
+         * @return The state of the interpolation at the specified time.
+         */
         public float getAt(float deltaTime) {
             return easeMethod.ease(deltaTime, this.beginning, this.change, this.duration);
         }
 
     }
 
+    /**
+     * Untested, but might be able to update its goals after initialization for compatibility with ease wrappers
+     * Supposedly used in the case where instantiating a new animation is undesirable but the interpolation points might change.
+     */
     public static class DynamicEase extends Ease {
         private Supplier<Float> beginning;
         private Supplier<Float> change;
