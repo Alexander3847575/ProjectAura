@@ -35,4 +35,10 @@ public class EventHandler {
 
     }
 
+    @SubscribeEvent
+    public void onElementalReaction(ElementalReactionEvent event) {
+        HealthBarCapability healthBarCapability = CapabilityRegistry.getCapability(event.getLivingEntity(), CapabilityRegistry.HEALTH_BAR_CAPABILITY);
+
+    }
+
 }

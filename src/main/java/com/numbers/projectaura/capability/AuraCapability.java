@@ -2,6 +2,7 @@ package com.numbers.projectaura.capability;
 
 import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.auras.IElementalAura;
+import com.numbers.projectaura.event.ElementalReactionEvent;
 import com.numbers.projectaura.network.AuraSyncMessage;
 import com.numbers.projectaura.reactions.IElementalReaction;
 import com.numbers.projectaura.reactions.ReactionData;
@@ -19,17 +20,20 @@ import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.common.util.NonNullFunction;
 import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     public static ResourceLocation ID = new ResourceLocation(ProjectAura.MOD_ID, "aura_capability");
+    // A list of functions that are supposed to check
     @Getter
     public LinkedHashMap<IElementalAura, Double> auras = new LinkedHashMap<>();
 
@@ -58,9 +62,10 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
         double remainingAura = applicationStrength;
 
-        // Cycle through all registered auras, avoiding concurrent modification
+        // Cycle through all currently applied auras, avoiding concurrent modification
         Iterator<Map.Entry<IElementalAura, Double>> iterator = auras.entrySet().iterator();
         while (iterator.hasNext()) {
+
             Map.Entry<IElementalAura, Double> aura = iterator.next();
 
             // Attempt a reaction
@@ -68,6 +73,8 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
             if (reaction == null){
                 continue;
             }
+
+            // React
             ReactionData result = reaction.react(ReactionData.builder()
                     .inputAppliedStrength(remainingAura)
                     .inputBaseStrength(aura.getValue())
@@ -78,6 +85,8 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
             if (result.isFailed()) {
                 continue;
             }
+
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(target, result));
 
             double outputBaseStrength = result.getOutputBaseStrength();
             double outputAppliedStrength = result.getOutputAppliedStrength();
@@ -91,11 +100,12 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
                 aura.setValue(outputBaseStrength);
             }
 
+            remainingAura = outputAppliedStrength;
+
             if (outputAppliedStrength < 0.1d) {
                 // Stop the reaction checks if there is no more aura to react
-                return;
+                break;
             }
-            remainingAura = outputAppliedStrength;
 
         }
 
@@ -113,7 +123,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
         boolean updated = false;
 
-        // Avoic concurrent modification
+        // Avoid concurrent modification
         Iterator<Map.Entry<IElementalAura, Double>> iterator = auras.entrySet().iterator();
 
         while (iterator.hasNext()) {
@@ -131,6 +141,8 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
             updated = true;
 
         }
+
+        // TODO: Check environmental applicators
 
         // Don't send packets if nothing was updated lol
         if (!updated) {

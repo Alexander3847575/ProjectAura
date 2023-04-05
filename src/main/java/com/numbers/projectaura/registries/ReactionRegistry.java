@@ -22,10 +22,10 @@ public class ReactionRegistry {
          * Thus, if you wanted to add a reaction where when Element X is applied to Element Y, you would file it as X_on_Y under Y.
          * Yes, I considered using a forge registry, but I really wanted the tree structure and making TreeForgeRegistry is beyond this scope... I'll eat my words later if I have to
           */
-        private static HashMap<IElementalAura, HashMap<ResourceLocation, IElementalReaction>> regisTree = new HashMap<>();// I'm sorry
+        private static HashMap<IElementalAura, HashMap<IElementalAura, Tuple<ResourceLocation, IElementalReaction<?, ?>>>> regisTree = new HashMap<>();// I'm sorry
 
         // Implement fancy tree registry behavior ooo
-        public <A extends IElementalAura, B extends IElementalAura> Tuple<ResourceLocation, IElementalReaction> register(ResourceLocation name, IElementalReaction<A, B> reaction) {
+        public <A extends IElementalAura, B extends IElementalAura> Tuple<ResourceLocation, IElementalReaction<?, ?>> register(ResourceLocation name, IElementalReaction<A, B> reaction) {
 
                 IElementalAura base = reaction.getBase().get();
 
@@ -33,35 +33,37 @@ public class ReactionRegistry {
                         regisTree.put(base, new HashMap<>());
                 }
 
-                HashMap registered = regisTree.get(base);
+                HashMap<IElementalAura, Tuple<ResourceLocation, IElementalReaction<?, ?>>> registered = regisTree.get(base);
 
-                if (regisTree.containsKey(name)) {
+                IElementalAura applied = reaction.getApplied().get();
+
+                if (registered.containsKey(applied)) {
                         throw new IllegalArgumentException("Registry already contains an entry: " + name.toString());
                 }
 
-                registered.put(name, reaction);
+                registered.put(applied, new Tuple<ResourceLocation, IElementalReaction<?, ?>>(name , reaction));
 
                 return new Tuple<>(name, reaction);
         }
 
-        public <A extends IElementalAura, B extends IElementalAura> Tuple<ResourceLocation, IElementalReaction> register(String name, IElementalReaction<A, B> reaction) {
+        public <A extends IElementalAura, B extends IElementalAura> Tuple<ResourceLocation, IElementalReaction<?, ?>> register(String name, IElementalReaction<A, B> reaction) {
                 return register(new ResourceLocation(this.MOD_ID, name), reaction);
         }
 
         @Nullable
-        public static IElementalReaction getReaction(IElementalAura applied, IElementalAura base) {
+        public static IElementalReaction<?, ?> getReaction(IElementalAura applied, IElementalAura base) {
 
-                if (regisTree.containsKey(base)) {
+                if (!regisTree.containsKey(base)) {
                         return null;
                 }
 
-                HashMap reactions = regisTree.get(base);
+                HashMap<IElementalAura, Tuple<ResourceLocation, IElementalReaction<?, ?>>> reactions = regisTree.get(base);
 
                 if (!reactions.containsKey(applied)) {
                         return null;
                 }
 
-                return (IElementalReaction) reactions.get(applied);
+                return reactions.get(applied).getB();
         }
 
         public ReactionRegistry(String modid) {
@@ -70,9 +72,9 @@ public class ReactionRegistry {
 
         public static final ReactionRegistry REGISTRY = new ReactionRegistry(ProjectAura.MOD_ID);
 
-        public static final Tuple<ResourceLocation, IElementalReaction> FIRE_ON_WATER = REGISTRY.register("fire_on_water", new FireOnWater());
+        public static final Tuple<ResourceLocation, IElementalReaction<?, ?>> FIRE_ON_WATER = REGISTRY.register("fire_on_water", new FireOnWater());
 
-        public static final Tuple<ResourceLocation, IElementalReaction> WATER_ON_FIRE = REGISTRY.register("water_on_fire", new WaterOnFire());
+        public static final Tuple<ResourceLocation, IElementalReaction<?, ?>> WATER_ON_FIRE = REGISTRY.register("water_on_fire", new WaterOnFire());
 
         public static void register() { }
 
