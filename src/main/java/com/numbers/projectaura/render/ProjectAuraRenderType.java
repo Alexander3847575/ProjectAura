@@ -61,7 +61,6 @@ public class ProjectAuraRenderType extends RenderStateShard {
                     .setTextureState(new TextureStateShard(texture, false, true))
                     .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                     .setLightmapState(LIGHTMAP)
-                    .setWriteMaskState(WriteMaskStateShard.COLOR_WRITE)
                     .createCompositeState(false)
     ));
 

@@ -18,12 +18,14 @@ public class AnimationComponent {
     @Getter @Setter
     private boolean active;
 
+    private float initialState;
     private float lastState;
 
     public AnimationComponent(Eases.Ease ease, long componentDelay) {
 
         this.ease = ease;
-        this.lastState = ease.getAt(0); // Set the starting state of the function to the initial state of the interpolation
+        this.initialState = ease.getAt(0); // Set the starting state of the function to the initial state of the interpolation
+        this.lastState = initialState;
         this.componentDuration = (long) ease.getDuration();
         this.componentDelay = componentDelay;
         this.absoluteComponentDuration = componentDuration + componentDelay;
@@ -57,7 +59,7 @@ public class AnimationComponent {
 
         // If this component hasn't passed its specified delay, return
         if (dt < this.componentDelay) {
-            return this.lastState; // This should be the initial state of the animation
+            return this.initialState; // This should be the initial state of the animation
         }
 
         this.lastState = this.ease.getAt(dt - componentDelay);

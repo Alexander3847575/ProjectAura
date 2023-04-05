@@ -4,17 +4,25 @@ import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.animation.Animation;
 import com.numbers.projectaura.animation.Eases;
 import com.numbers.projectaura.animation.component.AnimationComponent;
+import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.event.EventHandler;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import lombok.Getter;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Function;
 
 /**
  * This capability essentially acts as an interface between the entity (or rather, what happens to its health) and its health bar.
@@ -42,7 +50,12 @@ public class HealthBarCapability {
     @Getter
     public int bufferAlpha;
 
+    // Aura, aura value, animation id
+    public LinkedHashMap<IElementalAura, Tuple<Double, Integer>> auraRenderQueue = new LinkedHashMap<>();
+
+
     private final Animation bufferAnimation = new Animation()
+            // Alpha
             .addComponent(
                     new AnimationComponent(
                             new Eases.Ease(
@@ -53,6 +66,7 @@ public class HealthBarCapability {
                         )
                     )
             )
+            // Color
             .addComponent(
                     new AnimationComponent(
                             new Eases.Ease(
@@ -68,6 +82,38 @@ public class HealthBarCapability {
                 this.bufferPos = this.healthPercent;
             });
 
+
+    private final long ICON_APPLY_ANIMATION_DURATION = 250L;
+    private final Function<Integer, Animation> auraIconApplyAnimation = (animationId) -> new Animation()
+            // Scale
+            .addComponent(
+                    new AnimationComponent(
+                            new Eases.Ease(
+                                    Eases.CUBIC_EASE_OUT,
+                                    1,
+                                    2f, // 2.5x in size (scale of 1 -> 2.5 (1+1.5))
+                                    ICON_APPLY_ANIMATION_DURATION - 50
+                            ),
+                            50
+                    )
+            )
+            // Alpha
+            .addComponent(
+                    new AnimationComponent(
+                            new Eases.Ease(
+                                    Eases.LINEAR_EASE,
+                                    255,
+                                    -255,
+                                    ICON_APPLY_ANIMATION_DURATION - 50
+                            ),
+                            50
+                    )
+            )
+            .setDuration(ICON_APPLY_ANIMATION_DURATION);
+
+    public HashMap<Integer, Animation> auraApplyAnimations = new HashMap<>();
+    private int animationId = 0;
+
     /**
      * Called on LivingEntityTickEvent in {@link EventHandler}. Client side only.
      * Used for health calculations to avoid doing it on every client frame instead.
@@ -75,7 +121,12 @@ public class HealthBarCapability {
      * @param entity Entity being ticked
      */
     public void tick(LivingEntity entity) {
+        this.tickHealth(entity);
+        this.tickAuras(entity);
 
+    }
+
+    private void tickHealth(LivingEntity entity) {
         float health = entity.getHealth();
 
         // No need to update healthRatios if it's the same, this way we trade a simple check and some variables for div operation and such?
@@ -99,7 +150,56 @@ public class HealthBarCapability {
 
         //TODO: Reference ToroHealthBar to start creating the elemental damage indicators here?
         //  dev mods to reduce or eliminate build time
+    }
 
+    public void tickAuras(LivingEntity entity) {
+
+        AuraCapability auraCapability = CapabilityRegistry.getCapability(entity, CapabilityRegistry.AURA_CAPABILITY);
+        assert auraCapability != null; // All living entities should have this capability
+
+        Iterator<Map.Entry<IElementalAura, Double>> iterator = auraCapability.getAuras().entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<IElementalAura, Double> aura = iterator.next();
+
+            // When the entity receives a new aura
+            if (!this.auraRenderQueue.containsKey(aura.getKey())) {
+
+                this.auraRenderQueue.put(aura.getKey(), new Tuple<>(aura.getValue(), this.animationId)); // Add the aura to the render queue
+                this.auraApplyAnimations.put(this.animationId, auraIconApplyAnimation.apply(this.animationId)); // Add a new animation to the list and increment the animation id
+                this.auraApplyAnimations.get(this.animationId).start();
+                this.animationId++;
+
+                return;
+
+            }
+
+            // Update existing auras
+            Tuple<Double, Integer> tempVal = this.auraRenderQueue.get(aura.getKey());
+            // If the aura refreshed restart the animation
+            if (aura.getValue() > tempVal.getA()) {
+                if (this.auraApplyAnimations.get(tempVal.getB()) != null)
+                    this.auraApplyAnimations.get(tempVal.getB()).start();
+            }
+            this.auraRenderQueue.replace(aura.getKey(), new Tuple<>(aura.getValue(), tempVal.getB()));
+
+
+        }
+
+        // Remove auras that don't exist anymore
+        Iterator<IElementalAura> iterator2 = this.auraRenderQueue.keySet().iterator();
+        while (iterator2.hasNext()) {
+            IElementalAura aura = iterator2.next();
+            if (!auraCapability.getAuras().containsKey(aura)) {
+                this.auraApplyAnimations.remove(auraRenderQueue.get(aura).getB()); // Remove this auras animation as well
+                iterator2.remove();
+            }
+        }
+
+    }
+
+    public void tick() {
+        this.tickBuffer();
+        //this.tickAnimations();
     }
 
     // CALLED EVERY CLIENT FRAME
@@ -115,6 +215,7 @@ public class HealthBarCapability {
         this.bufferColor = (int) bufferAnimation.getComponentValue(1);
 
     }
+
 
     /**
      * Gets the blended color of the buffer with the background color to allow for smooth fading of the buffer into the background.

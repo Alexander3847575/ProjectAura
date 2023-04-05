@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.numbers.projectaura.ProjectAura;
-import com.numbers.projectaura.capability.AuraCapability;
+import com.numbers.projectaura.animation.Animation;
 import com.numbers.projectaura.capability.HealthBarCapability;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import net.minecraft.ChatFormatting;
@@ -209,15 +209,16 @@ public class HealthBarRenderer {
                 200,
                 0xF000F0
         );
+        final HealthBarCapability cap = CapabilityRegistry.getCapability(living, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
+
+        assert cap != null;
 
         {
 
             int color = getColor(living, false, boss); //CONF
             final VertexConsumer healthBarBuilder = buffers.getBuffer(BAR_TEXTURE_TYPE);
 
-            final HealthBarCapability cap = CapabilityRegistry.getCapability(living, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
 
-            assert cap != null;
             cap.tickBuffer(); //Unsafe but I think capability should be registered to all LivingEntities
             float bufferPos = cap.getBufferPos();
             float healthPercent = cap.getHealthPercent();
@@ -236,15 +237,17 @@ public class HealthBarRenderer {
             poseStack.pushPose();
             RenderSystem.enableBlend();
 
-            final AuraCapability auraCapability = CapabilityRegistry.getCapability(entity, CapabilityRegistry.AURA_CAPABILITY);
             poseStack.translate(-9, -30, 0);
             final int iconSize = 16;
+            final int halfIconSize = 16/2;
 
-            int aurasSize = auraCapability.auras.size();
+            int aurasSize = cap.auraRenderQueue.size();
             AtomicInteger i = new AtomicInteger();
 
+            RenderSystem.disableDepthTest();
+
             // Render an icon for each aura applied to the entity
-            auraCapability.getAuras().entrySet().forEach((entry) -> {
+            cap.auraRenderQueue.entrySet().forEach((entry) -> {
 
                 // Center each icon with padding
                 float xOffset = ((iconSize + 0.5f) * (i.get() - ((aurasSize/2f) - 0.5f)));
@@ -259,9 +262,20 @@ public class HealthBarRenderer {
                 renderColoredTexture(poseStack, iconBuilder, iconSize, xOffset, 0, 0F, iconColor, 255, properties.light);
 
                 //renderAuraIcon(poseStack, iconBuilder, 16, xOffset);
+                Animation animation = cap.auraApplyAnimations.get(entry.getValue().getB());
+
+                if (animation != null) {
+                    if (animation.isActive()) {
+                        float scaleMultiplier = animation.getComponentValue(0);
+                        float scaledOffset = (halfIconSize * (scaleMultiplier - 1));
+                        renderColoredTexture(poseStack, iconBuilder, iconSize * scaleMultiplier, xOffset - scaledOffset, -scaledOffset, 0F, HealthBarCapability.WHITE, Math.round(animation.getComponentValue(1)), properties.light);
+                    }
+                }
 
                 i.getAndIncrement();
             });
+
+            RenderSystem.enableDepthTest();
 
             poseStack.popPose();
         }
@@ -272,6 +286,7 @@ public class HealthBarRenderer {
 
             final int white = 0xFFFFFF;
             final int black = 0;
+
             // Name
             {
                 poseStack.pushPose();
