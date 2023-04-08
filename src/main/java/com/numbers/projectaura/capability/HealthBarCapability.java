@@ -2,15 +2,18 @@ package com.numbers.projectaura.capability;
 
 import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.animation.Animation;
-import com.numbers.projectaura.animation.Eases;
-import com.numbers.projectaura.animation.component.AnimationComponent;
+import com.numbers.projectaura.animation.AnimationComponent;
+import com.numbers.projectaura.animation.effects.Effect;
+import com.numbers.projectaura.animation.effects.ExpandAndFadeEffect;
+import com.numbers.projectaura.animation.functions.Eases;
 import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.event.EventHandler;
 import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.render.RenderUtil;
+import com.numbers.projectaura.render.ui.AuraIcon;
 import lombok.Getter;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
@@ -18,11 +21,12 @@ import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * This capability essentially acts as an interface between the entity (or rather, what happens to its health) and its health bar.
@@ -49,10 +53,6 @@ public class HealthBarCapability {
     public int bufferColor;
     @Getter
     public int bufferAlpha;
-
-    // Aura, aura value, animation id
-    public LinkedHashMap<IElementalAura, Tuple<Double, Integer>> auraRenderQueue = new LinkedHashMap<>();
-
 
     private final Animation bufferAnimation = new Animation()
             // Alpha
@@ -84,35 +84,34 @@ public class HealthBarCapability {
 
 
     private final long ICON_APPLY_ANIMATION_DURATION = 250L;
-    private final Function<Integer, Animation> auraIconApplyAnimation = (animationId) -> new Animation()
-            // Scale
-            .addComponent(
-                    new AnimationComponent(
-                            new Eases.Ease(
-                                    Eases.CUBIC_EASE_OUT,
-                                    1,
-                                    2f, // 2.5x in size (scale of 1 -> 2.5 (1+1.5))
-                                    ICON_APPLY_ANIMATION_DURATION - 50
-                            ),
-                            50
-                    )
-            )
-            // Alpha
-            .addComponent(
-                    new AnimationComponent(
-                            new Eases.Ease(
-                                    Eases.LINEAR_EASE,
-                                    255,
-                                    -255,
-                                    ICON_APPLY_ANIMATION_DURATION - 50
-                            ),
-                            50
-                    )
-            )
-            .setDuration(ICON_APPLY_ANIMATION_DURATION);
+    private final Function<ResourceLocation, ExpandAndFadeEffect> IconApplyEffect = (t) -> new ExpandAndFadeEffect(
+             t,
+             16,
+             2f,
+             ICON_APPLY_ANIMATION_DURATION,
+             50,
+             WHITE,
+             255,
+             0xF000F0
+     );
 
-    public HashMap<Integer, Animation> auraApplyAnimations = new HashMap<>();
-    private int animationId = 0;
+    private final ResourceLocation REACTION_SHOCK_TEXTURE = new ResourceLocation(ProjectAura.MOD_ID, "/ui/ring_effect.png");
+    private final Supplier<ExpandAndFadeEffect> ReactionShockEffect = () -> new ExpandAndFadeEffect(
+            REACTION_SHOCK_TEXTURE,
+            0.01f,
+            200f,
+            ICON_APPLY_ANIMATION_DURATION,
+            0,
+            WHITE,
+            255,
+            0xF000F0
+    );
+
+    // Aura, aura value, animation id
+    public LinkedHashMap<IElementalAura, AuraIcon> iconRenderQueue = new LinkedHashMap<>();
+    public LinkedHashMap<IElementalAura, Double> internalAuraBuffer = new LinkedHashMap<>();
+
+
 
     /**
      * Called on LivingEntityTickEvent in {@link EventHandler}. Client side only.
@@ -162,39 +161,51 @@ public class HealthBarCapability {
             Map.Entry<IElementalAura, Double> aura = iterator.next();
 
             // When the entity receives a new aura
-            if (!this.auraRenderQueue.containsKey(aura.getKey())) {
+            if (!this.internalAuraBuffer.containsKey(aura.getKey())) {
+                ArrayList<Effect> effects = new ArrayList<>();
+                effects.add(IconApplyEffect.apply(aura.getKey().getIcon()));
 
-                this.auraRenderQueue.put(aura.getKey(), new Tuple<>(aura.getValue(), this.animationId)); // Add the aura to the render queue
-                this.auraApplyAnimations.put(this.animationId, auraIconApplyAnimation.apply(this.animationId)); // Add a new animation to the list and increment the animation id
-                this.auraApplyAnimations.get(this.animationId).start();
-                this.animationId++;
+                AuraIcon icon = AuraIcon.builder()
+                        .auraType(aura.getKey())
+                        .effects(effects)
+                        .build();
+
+                this.internalAuraBuffer.put(aura.getKey(), aura.getValue());
+                this.iconRenderQueue.put(aura.getKey(), icon); // Add the aura to the render queue
 
                 return;
 
             }
 
             // Update existing auras
-            Tuple<Double, Integer> tempVal = this.auraRenderQueue.get(aura.getKey());
+            double tempVal = this.internalAuraBuffer.get(aura.getKey());
             // If the aura refreshed restart the animation
-            if (aura.getValue() > tempVal.getA()) {
-                if (this.auraApplyAnimations.get(tempVal.getB()) != null)
-                    this.auraApplyAnimations.get(tempVal.getB()).start();
+            if (aura.getValue() > tempVal) {
+
+                if (this.iconRenderQueue.get(aura.getKey()) != null)
+                    // The apply animation should ALWAYS be the first index
+                    this.iconRenderQueue.get(aura.getKey()).getEffects().get(0).getAnimation().start();
+
             }
-            this.auraRenderQueue.replace(aura.getKey(), new Tuple<>(aura.getValue(), tempVal.getB()));
+            this.internalAuraBuffer.replace(aura.getKey(), aura.getValue());
 
 
         }
 
         // Remove auras that don't exist anymore
-        Iterator<IElementalAura> iterator2 = this.auraRenderQueue.keySet().iterator();
-        while (iterator2.hasNext()) {
-            IElementalAura aura = iterator2.next();
+        Iterator<IElementalAura> auraBufferIterator = this.internalAuraBuffer.keySet().iterator();
+        while (auraBufferIterator.hasNext()) {
+            IElementalAura aura = auraBufferIterator.next();
             if (!auraCapability.getAuras().containsKey(aura)) {
-                this.auraApplyAnimations.remove(auraRenderQueue.get(aura).getB()); // Remove this auras animation as well
-                iterator2.remove();
+                auraBufferIterator.remove();
+                this.iconRenderQueue.remove(aura);
             }
         }
 
+    }
+
+    public void removeIcon(AuraIcon aura) {
+        this.iconRenderQueue.remove(aura);
     }
 
     public void tick() {
@@ -223,35 +234,10 @@ public class HealthBarCapability {
      * @return the blended color
      */
     public int getBlendedBufferColor(int bgColor) {
-        return blendColors(this.bufferColor, this.bufferAlpha, bgColor);
+        return RenderUtil.blendColors(this.bufferColor, this.bufferAlpha, bgColor);
     }
     public int getBlendedBufferAlpha(int bgAlpha) {
         return Math.round(Eases.CUBIC_EASE_IN.ease(bufferAnimation.getDeltaTime(), this.bufferAlpha, 170 - this.bufferAlpha, EASE_DURATION));
-    }
-
-    public static int blendColors(int overlayColor, int overlayAlpha, int bgColor) {
-
-        int ar = (overlayColor >> 16) & 0xFF;
-        int ag = (overlayColor >> 8) & 0xFF;
-        int ab = overlayColor & 0xFF;
-
-        int br = (bgColor >> 16) & 0xFF;
-        int bg = (bgColor >> 8) & 0xFF;
-        int bb = bgColor & 0xFF;
-
-        // C implementation >> java one lmao
-        /*int cr = (ar * ar + br * (255 - this.bufferAlpha)) / 255;
-        int cg = (ag * ag + bg * (255 - this.bufferAlpha)) / 255;
-        int cb = (ab * ab + bb * (255 - this.bufferAlpha)) / 255;*/
-
-        int alpha = overlayAlpha + 1;
-        int inv_alpha = 256 - overlayAlpha;
-
-        int cr = (alpha * ar + inv_alpha * br) >> 8;
-        int cg = (alpha * ag + inv_alpha * bg) >> 8;
-        int cb = (alpha * ab + inv_alpha * bb) >> 8;
-
-        return 0xff000000 | cr << 16 | cg << 8 | cb;
     }
 
     public static class HealthBarCapabilityProvider implements ICapabilityProvider {

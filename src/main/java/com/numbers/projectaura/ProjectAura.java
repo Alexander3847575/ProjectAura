@@ -10,6 +10,7 @@ import com.numbers.projectaura.registries.ReactionRegistry;
 import com.tterrag.registrate.Registrate;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.common.MinecraftForge;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 public final class ProjectAura {
     // Define mod id in a common place for everything to reference
     public static final String MOD_ID = "projectaura";
+    public static final ResourceLocation DEFAULT_RESOURCE_LOCATION = new ResourceLocation(MOD_ID, "/ui/oh_no.png");
 
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();

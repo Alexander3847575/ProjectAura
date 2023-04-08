@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.numbers.projectaura.ProjectAura;
-import com.numbers.projectaura.animation.Animation;
+import com.numbers.projectaura.animation.effects.Effect;
 import com.numbers.projectaura.capability.HealthBarCapability;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import net.minecraft.ChatFormatting;
@@ -31,10 +31,12 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -156,7 +158,6 @@ public class HealthBarRenderer {
 
     // TODO: figure out if it's possible to scale the health bar based on distance from camera to be a constant size
     //      make a param override for mobs where the health bar needs to be positioned differently, e.g. elder guardian, wither
-    //      render icons for auras - DONE
     //      add element application animation, aura fade out flash (sine based)
     //      maybe override boss bar
     //      config
@@ -235,19 +236,19 @@ public class HealthBarRenderer {
         // Aura Icons
         {
             poseStack.pushPose();
-            RenderSystem.enableBlend();
 
             poseStack.translate(-9, -30, 0);
             final int iconSize = 16;
             final int halfIconSize = 16/2;
 
-            int aurasSize = cap.auraRenderQueue.size();
+            int aurasSize = cap.iconRenderQueue.size();
             AtomicInteger i = new AtomicInteger();
 
             RenderSystem.disableDepthTest();
+            RenderSystem.enableBlend();
 
-            // Render an icon for each aura applied to the entity
-            cap.auraRenderQueue.entrySet().forEach((entry) -> {
+            // Render an icon for each aura applied to the entity TODO: blur maybe should be split off into different loop to avoid switching th textures literally constantly
+            cap.iconRenderQueue.entrySet().forEach((entry) -> {
 
                 // Center each icon with padding
                 float xOffset = ((iconSize + 0.5f) * (i.get() - ((aurasSize/2f) - 0.5f)));
@@ -255,27 +256,27 @@ public class HealthBarRenderer {
 
                 // REnder slight glow effect behind icon
                 final VertexConsumer blurBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/blur.png")));
-                renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, xOffset -2, -1,0.01F, iconColor, 130, properties.light);
+                RenderUtil.renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, new Vector3f(xOffset -2, -1,0.01F), iconColor, 130, properties.light);
 
                 // Render icon
                 final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(entry.getKey().getIcon()));
-                renderColoredTexture(poseStack, iconBuilder, iconSize, xOffset, 0, 0F, iconColor, 255, properties.light);
+                RenderUtil.renderColoredTexture(poseStack, iconBuilder, iconSize, new Vector3f(xOffset, 0, 0F), iconColor, 255, properties.light);
 
                 //renderAuraIcon(poseStack, iconBuilder, 16, xOffset);
-                Animation animation = cap.auraApplyAnimations.get(entry.getValue().getB());
+                ArrayList<Effect> effects = entry.getValue().getEffects();
 
-                if (animation != null) {
-                    if (animation.isActive()) {
-                        float scaleMultiplier = animation.getComponentValue(0);
-                        float scaledOffset = (halfIconSize * (scaleMultiplier - 1));
-                        renderColoredTexture(poseStack, iconBuilder, iconSize * scaleMultiplier, xOffset - scaledOffset, -scaledOffset, 0F, HealthBarCapability.WHITE, Math.round(animation.getComponentValue(1)), properties.light);
+                effects.forEach(effect -> {
+
+                    if (!effect.isActive()) {
+                        return;
                     }
-                }
+
+                    effect.render(poseStack, buffers, new Vector3f(xOffset, 0, 0));
+
+                });
 
                 i.getAndIncrement();
             });
-
-            RenderSystem.enableDepthTest();
 
             poseStack.popPose();
         }
@@ -509,14 +510,6 @@ public class HealthBarRenderer {
 
     }
 
-    private static void renderAuraIcon(PoseStack poseStack, VertexConsumer builder, float iconSize, float xOffset) {
-        Matrix4f lastPose = poseStack.last().pose();
-        builder.vertex(lastPose, xOffset, iconSize, 0.000F).uv(0.0F, 1.0F).endVertex();
-        builder.vertex(lastPose, xOffset + iconSize, iconSize, 0.000F).uv(1.0F, 1.0F).endVertex();
-        builder.vertex(lastPose, xOffset + iconSize, 0, 0.000F).uv(1.0F, 0.0F).endVertex();
-        builder.vertex(lastPose, xOffset, 0, 0.000F).uv(0.0F, 0.0F).endVertex();
-    }
-
     private static void renderIcon(ItemStack icon, PoseStack poseStack, MultiBufferSource buffers, Level level, float globalScale, float halfSize, float leftShift, float zShift) {
         if (!icon.isEmpty()) {
             final float iconScale = 0.12F;
@@ -536,19 +529,6 @@ public class HealthBarRenderer {
                             0xF000F0, OverlayTexture.NO_OVERLAY, poseStack, buffers, level, 0);
             poseStack.popPose();
         }
-    }
-
-    private static void renderColoredTexture(PoseStack poseStack, VertexConsumer builder, float textureSize, float xOffset, float yOffset, float zOffset, int color, int alpha, int light) {
-
-        int r = (color >> 16) & 0xFF;
-        int g = (color >> 8) & 0xFF;
-        int b = color & 0xFF;
-
-        Matrix4f lastPose = poseStack.last().pose();
-        builder.vertex(lastPose, xOffset, textureSize + yOffset, zOffset).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(light).endVertex();
-        builder.vertex(lastPose, xOffset + textureSize, textureSize + yOffset, zOffset).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(light).endVertex();
-        builder.vertex(lastPose, xOffset + textureSize, yOffset, zOffset).color(r, g, b, alpha).uv(1.0F, 0.0F).uv2(light).endVertex();
-        builder.vertex(lastPose, xOffset, yOffset, zOffset).color(r, g, b, alpha).uv(0.0F, 0.0F).uv2(light).endVertex();
     }
 
 }

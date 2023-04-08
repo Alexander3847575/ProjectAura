@@ -1,4 +1,4 @@
-package com.numbers.projectaura.animation;
+package com.numbers.projectaura.animation.functions;
 
 import lombok.Getter;
 
@@ -30,7 +30,7 @@ public final class Eases {
     /**
      * A wrapper class for EaseMethods that stores its constants in an animation context.
      */
-    public static class Ease {
+    public static class Ease implements IAnimationFunction {
         private float beginning;
         private float change;
         @Getter
@@ -49,7 +49,7 @@ public final class Eases {
          * @param deltaTime Relative time of the interpolation
          * @return The state of the interpolation at the specified time.
          */
-        public float getAt(float deltaTime) {
+        public float getAt(long deltaTime) {
             return easeMethod.ease(deltaTime, this.beginning, this.change, this.duration);
         }
 
@@ -73,7 +73,7 @@ public final class Eases {
         }
 
         @Override
-        public float getAt(float deltaTime) {
+        public float getAt(long deltaTime) {
             return easeMethod.get().ease(deltaTime, beginning.get(), change.get(), duration.get());
         }
     }

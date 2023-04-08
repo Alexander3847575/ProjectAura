@@ -1,6 +1,5 @@
 package com.numbers.projectaura.animation;
 
-import com.numbers.projectaura.animation.component.AnimationComponent;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;

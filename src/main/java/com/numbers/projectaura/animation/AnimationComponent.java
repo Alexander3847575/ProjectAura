@@ -1,6 +1,7 @@
-package com.numbers.projectaura.animation.component;
+package com.numbers.projectaura.animation;
 
-import com.numbers.projectaura.animation.Eases;
+import com.numbers.projectaura.animation.functions.Eases;
+import com.numbers.projectaura.animation.functions.IAnimationFunction;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,7 +10,7 @@ import lombok.Setter;
  */
 public class AnimationComponent {
 
-    private Eases.Ease ease;
+    private IAnimationFunction function;
     @Getter
     private long componentDuration;
     private long componentDelay;
@@ -21,16 +22,22 @@ public class AnimationComponent {
     private float initialState;
     private float lastState;
 
-    public AnimationComponent(Eases.Ease ease, long componentDelay) {
-
-        this.ease = ease;
-        this.initialState = ease.getAt(0); // Set the starting state of the function to the initial state of the interpolation
+    public AnimationComponent(IAnimationFunction function, long componentDuration, long componentDelay) {
+        this.function = function;
+        this.initialState = function.getAt(0); // Set the starting state of the function to the initial state of the interpolation
         this.lastState = initialState;
-        this.componentDuration = (long) ease.getDuration();
+        this.componentDuration = componentDuration;
         this.componentDelay = componentDelay;
         this.absoluteComponentDuration = componentDuration + componentDelay;
         this.setActive(true);
+    }
 
+    public AnimationComponent(IAnimationFunction function, long componentDuration) {
+        this(function, componentDuration, 0L);
+    }
+
+    public AnimationComponent(Eases.Ease ease, long componentDelay) {
+        this(ease, (long) ease.getDuration(), componentDelay);
     }
 
     public AnimationComponent(Eases.Ease ease) {
@@ -62,7 +69,7 @@ public class AnimationComponent {
             return this.initialState; // This should be the initial state of the animation
         }
 
-        this.lastState = this.ease.getAt(dt - componentDelay);
+        this.lastState = this.function.getAt(dt - componentDelay);
         return this.lastState;
 
     }

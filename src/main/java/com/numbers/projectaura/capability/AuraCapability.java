@@ -20,20 +20,17 @@ import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.common.util.NonNullFunction;
 import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.Map;
 
 public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     public static ResourceLocation ID = new ResourceLocation(ProjectAura.MOD_ID, "aura_capability");
-    // A list of functions that are supposed to check
     @Getter
     public LinkedHashMap<IElementalAura, Double> auras = new LinkedHashMap<>();
 
@@ -46,7 +43,6 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
      * Here is where the reaction logic takes place; upon the application of a new aura
      * This method will then call helper methods that deal with the effects of the reactions themselves
      * <p>
-     * TODO: make reactions fully data driven
      *
      * @param applied
      *             The type of {@link IElementalAura} to apply.
@@ -93,7 +89,6 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
             if (outputBaseStrength < 0.1d) {
                 // Immediately remove the base aura if it has run out
-                // TODO: make a removeAura method so the renderer can hook into that
                 iterator.remove();
             } else {
                 // Update the base aura
@@ -177,7 +172,6 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
         return nbt;
     }
 
-    // TODO: client server value desync issue >:( should be syncing client and server caps anyways
     @Override
     public void deserializeNBT(CompoundTag nbt) {
         AuraRegistry.AURA_REGISTRY.getEntries().forEach((registeredAura) -> {
