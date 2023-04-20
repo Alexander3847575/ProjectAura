@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 public final class ProjectAura {
     // Define mod id in a common place for everything to reference
     public static final String MOD_ID = "projectaura";
-    public static final ResourceLocation DEFAULT_RESOURCE_LOCATION = new ResourceLocation(MOD_ID, "/ui/oh_no.png");
+    public static final ResourceLocation DEFAULT_RESOURCE_LOCATION = new ResourceLocation(MOD_ID, "textures/ui/oh_no.png");
 
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();

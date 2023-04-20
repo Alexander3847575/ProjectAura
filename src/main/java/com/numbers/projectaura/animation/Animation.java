@@ -21,6 +21,15 @@ public class Animation {
     private boolean active = false;
     private Runnable callback = () -> {};
 
+    public Animation() {
+        this(true);
+    }
+
+    public Animation(boolean shouldStart) {
+        if (shouldStart)
+            this.start();
+    }
+
     /**
      * Starts or restarts the animation, refreshing all components
      */
@@ -28,6 +37,11 @@ public class Animation {
         this.animationTimestamp = System.currentTimeMillis();
         this.components.forEach((component -> component.start()));
         this.setActive(true);
+    }
+
+    public void cancel() {
+        this.components.forEach((component -> component.cancel()));
+        this.setActive(false);
     }
 
     // Value builders
@@ -71,6 +85,29 @@ public class Animation {
 
     public float getComponentValue(int index) {
         return this.getComponent(index).getState(this.getDeltaTime());
+    }
+
+    /**
+     * Returns the percent progress of one of the components of this {@code Animation}.
+     * @param index The component index.
+     * @return Value from 0 to 1 indicating the progress of the component.
+     */
+    public float getComponentProgress(int index) {
+        AnimationComponent component = this.getComponent(index);
+
+        float componentTime = this.getDeltaTime() - component.getComponentDelay();
+
+        // If the component hasn't started yet
+        if (componentTime <= 0) {
+            return component.getState(0);
+        }
+
+        // If the component has finished
+        if (componentTime >= component.getComponentDuration()) {
+            return component.getState(component.getComponentDuration());
+        }
+
+        return componentTime / component.getComponentDuration();
     }
 
 

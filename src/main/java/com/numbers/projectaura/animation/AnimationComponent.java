@@ -13,6 +13,7 @@ public class AnimationComponent {
     private IAnimationFunction function;
     @Getter
     private long componentDuration;
+    @Getter
     private long componentDelay;
     @Getter
     private long absoluteComponentDuration;
@@ -41,9 +42,7 @@ public class AnimationComponent {
     }
 
     public AnimationComponent(Eases.Ease ease) {
-
         this(ease,  0L);
-
     }
 
     /**
@@ -79,6 +78,10 @@ public class AnimationComponent {
      */
     public void start() {
         this.setActive(true);
+    }
+
+    public void cancel() {
+        this.setActive(false);
     }
 
 

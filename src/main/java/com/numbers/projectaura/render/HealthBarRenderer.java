@@ -233,53 +233,6 @@ public class HealthBarRenderer {
             renderHealthBarOutline(properties.barLength, outlineColor, 150, properties, poseStack, outlineBuilder);
 
         }
-        // Aura Icons
-        {
-            poseStack.pushPose();
-
-            poseStack.translate(-9, -30, 0);
-            final int iconSize = 16;
-            final int halfIconSize = 16/2;
-
-            int aurasSize = cap.iconRenderQueue.size();
-            AtomicInteger i = new AtomicInteger();
-
-            RenderSystem.disableDepthTest();
-            RenderSystem.enableBlend();
-
-            // Render an icon for each aura applied to the entity TODO: blur maybe should be split off into different loop to avoid switching th textures literally constantly
-            cap.iconRenderQueue.entrySet().forEach((entry) -> {
-
-                // Center each icon with padding
-                float xOffset = ((iconSize + 0.5f) * (i.get() - ((aurasSize/2f) - 0.5f)));
-                final int iconColor = entry.getKey().getColor();
-
-                // REnder slight glow effect behind icon
-                final VertexConsumer blurBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/blur.png")));
-                RenderUtil.renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, new Vector3f(xOffset -2, -1,0.01F), iconColor, 130, properties.light);
-
-                // Render icon
-                final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(entry.getKey().getIcon()));
-                RenderUtil.renderColoredTexture(poseStack, iconBuilder, iconSize, new Vector3f(xOffset, 0, 0F), iconColor, 255, properties.light);
-
-                //renderAuraIcon(poseStack, iconBuilder, 16, xOffset);
-                ArrayList<Effect> effects = entry.getValue().getEffects();
-
-                effects.forEach(effect -> {
-
-                    if (!effect.isActive()) {
-                        return;
-                    }
-
-                    effect.render(poseStack, buffers, new Vector3f(xOffset, 0, 0));
-
-                });
-
-                i.getAndIncrement();
-            });
-
-            poseStack.popPose();
-        }
         // Text
         {
             final float textScale = 1F;
@@ -291,7 +244,7 @@ public class HealthBarRenderer {
             // Name
             {
                 poseStack.pushPose();
-                poseStack.translate(-nameLen / 2, -12F, 0F);
+                poseStack.translate(-nameLen / 2, -12F, 0F); // TODO: refactor all the posestack translations so that each part shifts up for the next part too
                 poseStack.scale(textScale, textScale, textScale);
                 mc.font.drawInBatch(name, 0, 0, white, false, poseStack.last().pose(), buffers, Font.DisplayMode.NORMAL, black, properties.light());
                 poseStack.popPose();
@@ -323,6 +276,53 @@ public class HealthBarRenderer {
                 }
                 poseStack.popPose();
             }
+        }
+        // Aura Icons
+        {
+            poseStack.pushPose();
+            poseStack.translate(0, -22, 0); // Move the render location up some
+
+
+            final int iconSize = 16;
+
+            int aurasSize = cap.iconRenderQueue.size();
+            AtomicInteger i = new AtomicInteger();
+
+            RenderSystem.disableDepthTest();
+            RenderSystem.enableBlend();
+
+            // Render an icon for each aura applied to the entity TODO: blur maybe should be split off into different loop to avoid switching th textures literally constantly
+            cap.iconRenderQueue.entrySet().forEach((entry) -> {
+
+                // Center each icon with padding
+                float xOffset = ((iconSize + 2f) * (i.get() - ((aurasSize/2f) - 0.5f)));
+                final int iconColor = entry.getKey().getColor();
+
+                // Render a slight glow effect behind icon
+                final VertexConsumer blurBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/blur.png")));
+                RenderUtil.renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, new Vector3f(xOffset, 0,0.01F), iconColor, 130, properties.light);
+
+                // Render icon
+                final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(entry.getKey().getIcon()));
+                RenderUtil.renderColoredTexture(poseStack, iconBuilder, iconSize, new Vector3f(xOffset, 0, 0F), iconColor, entry.getValue().getAlpha(), properties.light);
+
+                //renderAuraIcon(poseStack, iconBuilder, 16, xOffset);
+                ArrayList<Effect> effects = entry.getValue().getEffects();
+
+                effects.forEach(effect -> {
+
+                    if (!effect.isActive()) {
+                        return;
+                    }
+
+                    effect.render(poseStack, buffers, new Vector3f(xOffset, 0, -0.01f));
+
+                });
+
+                i.getAndIncrement();
+            });
+
+            poseStack.popPose();
         }
         poseStack.popPose(); // Remove globalScale
         // Icons

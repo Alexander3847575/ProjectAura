@@ -2,6 +2,7 @@ package com.numbers.projectaura.registries;
 
 import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.network.AuraSyncMessage;
+import com.numbers.projectaura.network.ElementalReactionMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkEvent;
@@ -23,6 +24,7 @@ public class NetworkRegistry {
 
     public void registerPackets() {
         this.registerPacket(AuraSyncMessage.class, AuraSyncMessage::serialize, AuraSyncMessage::deserialize, new AuraSyncMessage.Handler());
+        this.registerPacket(ElementalReactionMessage.class, ElementalReactionMessage::serialize, ElementalReactionMessage::deserialize, new ElementalReactionMessage.Handler());
     }
 
     public <T> void registerPacket(final Class<T> message, final BiConsumer<T, FriendlyByteBuf> encoder, Function<FriendlyByteBuf, T> decoder, BiConsumer<T, Supplier<NetworkEvent.Context>> handler) {

@@ -2,10 +2,13 @@ package com.numbers.projectaura.event;
 
 import com.numbers.projectaura.capability.AuraCapability;
 import com.numbers.projectaura.capability.HealthBarCapability;
+import com.numbers.projectaura.network.ElementalReactionMessage;
 import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.registries.NetworkRegistry;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.network.PacketDistributor;
 
 public class EventHandler {
 
@@ -37,7 +40,17 @@ public class EventHandler {
 
     @SubscribeEvent
     public void onElementalReaction(ElementalReactionEvent event) {
+
+        if (!event.getLivingEntity().level.isClientSide()) {
+            // Reroute to client
+            NetworkRegistry.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(event::getLivingEntity), new ElementalReactionMessage(event.getLivingEntity(), event.getReactionData()));
+            return;
+        }
+
         HealthBarCapability healthBarCapability = CapabilityRegistry.getCapability(event.getLivingEntity(), CapabilityRegistry.HEALTH_BAR_CAPABILITY);
+
+        assert healthBarCapability != null;
+        healthBarCapability.onReaction(event);
 
     }
 

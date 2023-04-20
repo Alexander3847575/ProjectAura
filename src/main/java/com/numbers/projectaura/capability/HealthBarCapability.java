@@ -7,6 +7,7 @@ import com.numbers.projectaura.animation.effects.Effect;
 import com.numbers.projectaura.animation.effects.ExpandAndFadeEffect;
 import com.numbers.projectaura.animation.functions.Eases;
 import com.numbers.projectaura.auras.IElementalAura;
+import com.numbers.projectaura.event.ElementalReactionEvent;
 import com.numbers.projectaura.event.EventHandler;
 import com.numbers.projectaura.registries.CapabilityRegistry;
 import com.numbers.projectaura.render.RenderUtil;
@@ -25,13 +26,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
  * This capability essentially acts as an interface between the entity (or rather, what happens to its health) and its health bar.
- * It is primarily used for calculations related to the buffer, which requires data tied to an entity that cannot be done in its renderer.
- *
+ * It is primarily used for calculations related to the buffer, which requires data tied to an entity that cannot be done in its renderer.*
  * TODO: See if all this can be moved to a client-side only type of thing.
  */
 public class HealthBarCapability {
@@ -83,9 +84,9 @@ public class HealthBarCapability {
             });
 
 
-    private final long ICON_APPLY_ANIMATION_DURATION = 250L;
-    private final Function<ResourceLocation, ExpandAndFadeEffect> IconApplyEffect = (t) -> new ExpandAndFadeEffect(
-             t,
+    private static final long ICON_APPLY_ANIMATION_DURATION = 250L;
+    private static final Function<ResourceLocation, ExpandAndFadeEffect> IconApplyEffect = (texture) -> new ExpandAndFadeEffect(
+             texture,
              16,
              2f,
              ICON_APPLY_ANIMATION_DURATION,
@@ -95,23 +96,33 @@ public class HealthBarCapability {
              0xF000F0
      );
 
-    private final ResourceLocation REACTION_SHOCK_TEXTURE = new ResourceLocation(ProjectAura.MOD_ID, "/ui/ring_effect.png");
-    private final Supplier<ExpandAndFadeEffect> ReactionShockEffect = () -> new ExpandAndFadeEffect(
-            REACTION_SHOCK_TEXTURE,
-            0.01f,
-            200f,
+    private static final BiFunction<ResourceLocation, Integer, ExpandAndFadeEffect> REACTION_ICON_EFFECT = (texture, color) -> new ExpandAndFadeEffect(
+            texture,
+            32,
+             -0.5f,
             ICON_APPLY_ANIMATION_DURATION,
+            50,
+            new AnimationComponent(new Eases.Ease(Eases.COLOR_CUBIC_EASE_IN, WHITE, color, ICON_APPLY_ANIMATION_DURATION), 0),
+            255,
+            0xF000F0
+    );
+
+    private static final ResourceLocation REACTION_SHOCK_TEXTURE = new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/ring_effect.png");
+    private static final Supplier<ExpandAndFadeEffect> ReactionShockEffect = () -> new ExpandAndFadeEffect(
+            REACTION_SHOCK_TEXTURE,
+            16f,
+            2f,
+            500L,
             0,
             WHITE,
             255,
             0xF000F0
     );
 
+
     // Aura, aura value, animation id
     public LinkedHashMap<IElementalAura, AuraIcon> iconRenderQueue = new LinkedHashMap<>();
     public LinkedHashMap<IElementalAura, Double> internalAuraBuffer = new LinkedHashMap<>();
-
-
 
     /**
      * Called on LivingEntityTickEvent in {@link EventHandler}. Client side only.
@@ -162,8 +173,10 @@ public class HealthBarCapability {
 
             // When the entity receives a new aura
             if (!this.internalAuraBuffer.containsKey(aura.getKey())) {
+
                 ArrayList<Effect> effects = new ArrayList<>();
                 effects.add(IconApplyEffect.apply(aura.getKey().getIcon()));
+                effects.get(0).start();
 
                 AuraIcon icon = AuraIcon.builder()
                         .auraType(aura.getKey())
@@ -182,11 +195,21 @@ public class HealthBarCapability {
             // If the aura refreshed restart the animation
             if (aura.getValue() > tempVal) {
 
-                if (this.iconRenderQueue.get(aura.getKey()) != null)
-                    // The apply animation should ALWAYS be the first index
-                    this.iconRenderQueue.get(aura.getKey()).getEffects().get(0).getAnimation().start();
+                if (this.iconRenderQueue.get(aura.getKey()) != null) {
+
+                    AuraIcon icon = this.iconRenderQueue.get(aura.getKey());
+                    icon.getEffects().get(0).start(); // Start apply animation
+                    icon.cancelFadeAnimation();
+
+                }
 
             }
+
+            // Start fade animation when the aura has less than 2 seconds remaining
+            if (aura.getValue() < 4.0d) {
+                this.iconRenderQueue.get(aura.getKey()).startFadeAnimation();
+            }
+
             this.internalAuraBuffer.replace(aura.getKey(), aura.getValue());
 
 
@@ -198,19 +221,62 @@ public class HealthBarCapability {
             IElementalAura aura = auraBufferIterator.next();
             if (!auraCapability.getAuras().containsKey(aura)) {
                 auraBufferIterator.remove();
-                this.iconRenderQueue.remove(aura);
+                this.iconRenderQueue.get(aura).markForRemoval();
+            }
+        }
+
+        Iterator<Map.Entry<IElementalAura, AuraIcon>> iconIterator = this.iconRenderQueue.entrySet().iterator();
+        while (iconIterator.hasNext()) {
+            Map.Entry<IElementalAura, AuraIcon> auraIcon = iconIterator.next();
+            if (!this.internalAuraBuffer.containsKey(auraIcon.getKey()) && auraIcon.getValue().shouldRemove()) {
+                iconIterator.remove();
             }
         }
 
     }
 
-    public void removeIcon(AuraIcon aura) {
-        this.iconRenderQueue.remove(aura);
+    public void onReaction(ElementalReactionEvent event) {
+
+        final IElementalAura baseAura = event.getReactionData().getBaseAura();
+        final AuraIcon baseIcon = this.iconRenderQueue.get(baseAura);
+
+        if (baseIcon == null) {
+            return;
+        }
+
+        // TODO: Ideally these base animations wouldn't be inside the effects array..
+        baseIcon.getEffects().get(0).cancel(); // Cancel apply animation
+        baseIcon.cancelFadeAnimation();
+        baseIcon.getEffects().add(ReactionShockEffect.get());
+        baseIcon.getEffects().add(REACTION_ICON_EFFECT.apply(baseAura.getIcon(), baseAura.getColor()));
+        baseIcon.markForRemovalWithDelay(500L);
+
+        final IElementalAura appliedAura = event.getReactionData().getAppliedAura();
+        final AuraIcon appliedIcon = makeIcon(appliedAura);
+
+        appliedIcon.getEffects().get(0).cancel(); // Cancel apply animation
+        appliedIcon.getEffects().add(ReactionShockEffect.get());
+        appliedIcon.getEffects().add(REACTION_ICON_EFFECT.apply(appliedAura.getIcon(), appliedAura.getColor()));
+        appliedIcon.markForRemovalWithDelay(500L);
+
+        this.iconRenderQueue.put(event.getReactionData().getAppliedAura(), appliedIcon);
+
     }
 
-    public void tick() {
-        this.tickBuffer();
-        //this.tickAnimations();
+    public static AuraIcon makeIcon(IElementalAura aura) {
+        ArrayList<Effect> effects = new ArrayList<>();
+        effects.add(IconApplyEffect.apply(aura.getIcon()));
+
+        AuraIcon icon = AuraIcon.builder()
+                .auraType(aura)
+                .effects(effects)
+                .build();
+
+        return icon;
+    }
+
+    public void removeIcon(AuraIcon aura) {
+        this.iconRenderQueue.remove(aura);
     }
 
     // CALLED EVERY CLIENT FRAME
@@ -237,7 +303,7 @@ public class HealthBarCapability {
         return RenderUtil.blendColors(this.bufferColor, this.bufferAlpha, bgColor);
     }
     public int getBlendedBufferAlpha(int bgAlpha) {
-        return Math.round(Eases.CUBIC_EASE_IN.ease(bufferAnimation.getDeltaTime(), this.bufferAlpha, 170 - this.bufferAlpha, EASE_DURATION));
+        return Math.round(Eases.CUBIC_EASE_IN.ease(bufferAnimation.getDeltaTime(), this.bufferAlpha, bgAlpha - this.bufferAlpha, EASE_DURATION));
     }
 
     public static class HealthBarCapabilityProvider implements ICapabilityProvider {

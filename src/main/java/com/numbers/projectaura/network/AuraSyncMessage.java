@@ -67,24 +67,30 @@ public class AuraSyncMessage {
     public static class Handler implements BiConsumer<AuraSyncMessage, Supplier<NetworkEvent.Context>> {
         @Override
         public void accept(final AuraSyncMessage message, final Supplier<NetworkEvent.Context> contextSupplier) {
+
             final NetworkEvent.Context context = contextSupplier.get();
+
             context.enqueueWork(() -> {
+
                 if (Minecraft.getInstance().level == null) {
                     return;
                 }
 
                 Entity entity = Minecraft.getInstance().level.getEntity(message.entityID);
 
-                if (entity instanceof LivingEntity living) {
-
-                    AuraCapability auraCapability = CapabilityRegistry.getCapability(living, CapabilityRegistry.AURA_CAPABILITY);
-
-                    assert auraCapability != null;
-                    auraCapability.auras = message.auras;
-
+                if (!(entity instanceof LivingEntity living)) {
+                    return;
                 }
+
+                AuraCapability auraCapability = CapabilityRegistry.getCapability(living, CapabilityRegistry.AURA_CAPABILITY);
+
+                assert auraCapability != null;
+                auraCapability.auras = message.auras;
+
             });
+
             context.setPacketHandled(true);
+
         }
     }
 

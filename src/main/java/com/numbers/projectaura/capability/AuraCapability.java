@@ -2,6 +2,8 @@ package com.numbers.projectaura.capability;
 
 import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.auras.IElementalAura;
+import com.numbers.projectaura.auras.applicator.ElementalDamageInstance;
+import com.numbers.projectaura.auras.applicator.IEnvironmentalApplicator;
 import com.numbers.projectaura.event.ElementalReactionEvent;
 import com.numbers.projectaura.network.AuraSyncMessage;
 import com.numbers.projectaura.reactions.IElementalReaction;
@@ -24,6 +26,7 @@ import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -33,10 +36,19 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
     public static ResourceLocation ID = new ResourceLocation(ProjectAura.MOD_ID, "aura_capability");
     @Getter
     public LinkedHashMap<IElementalAura, Double> auras = new LinkedHashMap<>();
+    private ArrayList<IEnvironmentalApplicator<? extends IElementalAura>> environmentalApplicators = new ArrayList<>();
 
     public AuraCapability() {
         // Populate
         //AuraRegistry.AURAS.get().getValues().stream().forEach(aura -> auras.put(aura, 0.0d))
+        this.environmentalApplicators.add(
+                new IEnvironmentalApplicator<IElementalAura>() {
+                    @Override
+                    public ElementalDamageInstance<IElementalAura> test(LivingEntity entity) {
+                        return null;
+                    }
+                }
+        );
     }
 
     /**
@@ -65,24 +77,26 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
             Map.Entry<IElementalAura, Double> aura = iterator.next();
 
             // Attempt a reaction
-            IElementalReaction reaction = ReactionRegistry.getReaction(applied, aura.getKey());
+            IElementalReaction<?, ?> reaction = ReactionRegistry.getReaction(applied, aura.getKey());
             if (reaction == null){
                 continue;
             }
 
             // React
             ReactionData result = reaction.react(ReactionData.builder()
-                    .inputAppliedStrength(remainingAura)
-                    .inputBaseStrength(aura.getValue())
-                    .target(target)
-                    .build());
+                            .appliedAura(applied)
+                            .baseAura(aura.getKey())
+                            .inputAppliedStrength(remainingAura)
+                            .inputBaseStrength(aura.getValue())
+                            .target(target)
+                            .build());
 
             // No need to update aura values or anything if the reaction failed
             if (result.isFailed()) {
                 continue;
             }
 
-            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(target, result));
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(target, reaction, result));
 
             double outputBaseStrength = result.getOutputBaseStrength();
             double outputAppliedStrength = result.getOutputAppliedStrength();
@@ -112,7 +126,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
 
     /**
      * Auras are only ticked on the server
-     * @param entity
+     * @param entity The entity whose auras are being ticked
      */
     public void tick(LivingEntity entity) {
 

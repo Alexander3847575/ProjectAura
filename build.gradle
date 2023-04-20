@@ -62,7 +62,7 @@ minecraft {
             workingDirectory project.file('run')
 
             // Allow for HMR with JBR
-            jvmArg "-XX:+AllowEnhancedClassRedefinition -XX:HotswapAgent=fatjar"
+            jvmArg "-XX:+AllowEnhancedClassRedefinition -XX:+AllowRedefinitionToAddDeleteMethods -XX:HotswapAgent=fatjar"
 
             // Recommended logging data for a userdev environment
             // The markers can be added/remove as needed separated by commas.

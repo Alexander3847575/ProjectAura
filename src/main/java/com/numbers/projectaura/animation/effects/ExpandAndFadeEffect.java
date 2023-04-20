@@ -12,7 +12,9 @@ import org.joml.Vector3f;
 // TODO: I swear there's a functional way to do this but my brain can't take trying to anymore
 public class ExpandAndFadeEffect extends Effect {
 
-    public ExpandAndFadeEffect(ResourceLocation texture, float effectSize, float animationScale, long animationDuration, long animationDelay, int color, int alpha, int light) {
+    private float animationScale;
+
+    public ExpandAndFadeEffect(ResourceLocation texture, float effectSize, float animationScale, long animationDuration, long animationDelay, AnimationComponent color, int alpha, int light) {
         super(
                 new Animation()
                         // Scale
@@ -39,21 +41,50 @@ public class ExpandAndFadeEffect extends Effect {
                                         animationDelay
                                 )
                         )
+                        // Color
+                        .addComponent(
+                                color
+                        )
                         .setDuration(animationDuration),
                 texture,
                 effectSize,
-                color,
+                0,
                 alpha,
                 light
         );
 
+        this.animationScale = animationScale;
+
+    }
+
+    public ExpandAndFadeEffect(ResourceLocation texture, float effectSize, float animationScale, long animationDuration, long animationDelay, int color, int alpha, int light) {
+        this(texture, effectSize, animationScale, animationDuration, animationDelay, new AnimationComponent((dt) -> color, animationDuration), alpha, light);
     }
 
     @Override
     public void render(PoseStack poseStack, MultiBufferSource buffers, Vector3f offsetVector) {
-        float scaleMultiplier = animation.getComponentValue(0);
-        float scaledOffset = (halfEffectSize * (scaleMultiplier - 1));
-        offsetVector.add(-scaledOffset, -scaledOffset, 0F);
-        RenderUtil.renderColoredTexture(poseStack, this.getConsumer(buffers), 16 * scaleMultiplier, offsetVector, this.color, Math.round(this.animation.getComponentValue(1)), light);
+
+        if (!this.isActive()) {
+            return;
+        }
+
+        float scaleMultiplier = this.animation.getComponentValue(0);
+        RenderUtil.renderColoredTexture(poseStack, this.getConsumer(buffers), this.effectSize * scaleMultiplier, offsetVector, Math.round(this.animation.getComponentValue(2)), Math.round(this.animation.getComponentValue(1)), this.light);
+
+        this.active = this.animation.isActive();
+
     }
+
+    private IRenderMethod method = (self, poseStack, buffers, offsetVector) -> {
+
+
+        float scaleMultiplier = self.animation.getComponentValue(0);
+        float scaledOffset = (self.halfEffectSize * scaleMultiplier) - (8);
+        //ProjectAura.LOGGER.debug(String.valueOf(scaledOffset));
+        offsetVector.add(-scaledOffset, -scaledOffset, 0F);
+        RenderUtil.renderColoredTexture(poseStack, self.getConsumer(buffers), self.effectSize * scaleMultiplier, offsetVector, Math.round(self.animation.getComponentValue(2)), Math.round(self.animation.getComponentValue(1)), self.light);
+
+
+    };
+
 }

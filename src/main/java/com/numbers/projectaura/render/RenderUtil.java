@@ -7,17 +7,28 @@ import org.joml.Vector3f;
 
 public class RenderUtil {
 
+    /**
+     * Renders a texture CENTERED on the PoseStack.
+     * @param poseStack
+     * @param builder
+     * @param textureSize
+     * @param offsetVector
+     * @param color
+     * @param alpha
+     * @param light
+     */
     public static void renderColoredTexture(PoseStack poseStack, VertexConsumer builder, float textureSize, Vector3f offsetVector, int color, int alpha, int light) {
 
+        float halfTextureSize = textureSize / 2;
         int r = (color >> 16) & 0xFF;
         int g = (color >> 8) & 0xFF;
         int b = color & 0xFF;
 
         Matrix4f lastPose = poseStack.last().pose();
-        builder.vertex(lastPose, offsetVector.x, textureSize + offsetVector.y, offsetVector.z).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(light).endVertex();
-        builder.vertex(lastPose, offsetVector.x + textureSize, textureSize + offsetVector.y, offsetVector.z).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(light).endVertex();
-        builder.vertex(lastPose, offsetVector.x + textureSize, offsetVector.y, offsetVector.z).color(r, g, b, alpha).uv(1.0F, 0.0F).uv2(light).endVertex();
-        builder.vertex(lastPose, offsetVector.x, offsetVector.y, offsetVector.z).color(r, g, b, alpha).uv(0.0F, 0.0F).uv2(light).endVertex();
+        builder.vertex(lastPose, offsetVector.x - halfTextureSize,  offsetVector.y + halfTextureSize, offsetVector.z).color(r, g, b, alpha).uv(0.0F, 1.0F).uv2(light).endVertex();
+        builder.vertex(lastPose, offsetVector.x + halfTextureSize,  offsetVector.y + halfTextureSize, offsetVector.z).color(r, g, b, alpha).uv(1.0F, 1.0F).uv2(light).endVertex();
+        builder.vertex(lastPose, offsetVector.x + halfTextureSize, offsetVector.y - halfTextureSize, offsetVector.z).color(r, g, b, alpha).uv(1.0F, 0.0F).uv2(light).endVertex();
+        builder.vertex(lastPose, offsetVector.x - halfTextureSize, offsetVector.y - halfTextureSize, offsetVector.z).color(r, g, b, alpha).uv(0.0F, 0.0F).uv2(light).endVertex();
     }
 
     public static int blendColors(int overlayColor, int overlayAlpha, int bgColor) {
