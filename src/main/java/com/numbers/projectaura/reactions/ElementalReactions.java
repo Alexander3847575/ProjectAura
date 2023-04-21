@@ -15,7 +15,7 @@ public class ElementalReactions {
 
         @Override
         public ReactionData react(ReactionData data) {
-            data.setDamage(data.getDamage() * 1.5f);
+            data.setOutputDamage(data.getInputDamage() * 1.5f);
             data.setOutputBaseStrength(data.getInputBaseStrength() - (data.getInputAppliedStrength() * 0.5));
             data.setOutputAppliedStrength(0);
             data.setFailed(false);
@@ -38,7 +38,8 @@ public class ElementalReactions {
 
         @Override
         public ReactionData react(ReactionData data) {
-            data.setDamage(data.getDamage() * 1.5f);
+            data.setOutputDamage(data.getInputDamage() * 2f);
+            data.setFailed(false);
             return data;
         }
 

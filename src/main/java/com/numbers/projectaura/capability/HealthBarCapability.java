@@ -9,7 +9,6 @@ import com.numbers.projectaura.animation.functions.Eases;
 import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.event.ElementalReactionEvent;
 import com.numbers.projectaura.event.EventHandler;
-import com.numbers.projectaura.registries.CapabilityRegistry;
 import com.numbers.projectaura.render.RenderUtil;
 import com.numbers.projectaura.render.ui.AuraIcon;
 import lombok.Getter;
@@ -164,7 +163,7 @@ public class HealthBarCapability {
 
     public void tickAuras(LivingEntity entity) {
 
-        AuraCapability auraCapability = CapabilityRegistry.getCapability(entity, CapabilityRegistry.AURA_CAPABILITY);
+        AuraCapability auraCapability = CapabilityHandler.getCapability(entity, CapabilityHandler.AURA_CAPABILITY);
         assert auraCapability != null; // All living entities should have this capability
 
         Iterator<Map.Entry<IElementalAura, Double>> iterator = auraCapability.getAuras().entrySet().iterator();
@@ -311,7 +310,7 @@ public class HealthBarCapability {
 
         @Override
         public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-            return CapabilityRegistry.HEALTH_BAR_CAPABILITY.orEmpty(cap, instance.cast());
+            return CapabilityHandler.HEALTH_BAR_CAPABILITY.orEmpty(cap, instance.cast());
         }
 
     }

@@ -1,7 +1,5 @@
-package com.numbers.projectaura.registries;
+package com.numbers.projectaura.capability;
 
-import com.numbers.projectaura.capability.AuraCapability;
-import com.numbers.projectaura.capability.HealthBarCapability;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.api.distmarker.Dist;
@@ -14,7 +12,7 @@ import net.minecraftforge.fml.DistExecutor;
 
 import javax.annotation.Nullable;
 
-public class CapabilityRegistry {
+public class CapabilityHandler {
 
     public static final Capability<AuraCapability> AURA_CAPABILITY = CapabilityManager.get(new CapabilityToken<>(){});
     public static final Capability<HealthBarCapability> HEALTH_BAR_CAPABILITY = CapabilityManager.get(new CapabilityToken<>(){});
@@ -27,7 +25,7 @@ public class CapabilityRegistry {
 
     public static void attachEntityCapability(AttachCapabilitiesEvent<Entity> e) {
         if (e.getObject() instanceof LivingEntity) {
-            e.addCapability(AuraCapability.ID, new AuraCapability.AuraCapabilityProvider());
+            e.addCapability(AuraCapability.ID, new AuraCapability.AuraCapabilityProvider((LivingEntity) e.getObject()));
 
             // Only add the health bar thing on the client
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {

@@ -7,7 +7,7 @@ import com.mojang.math.Axis;
 import com.numbers.projectaura.ProjectAura;
 import com.numbers.projectaura.animation.effects.Effect;
 import com.numbers.projectaura.capability.HealthBarCapability;
-import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.capability.CapabilityHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -191,16 +191,7 @@ public class HealthBarRenderer {
         // Plate background, bars, and text operate with globalScale, but icons don't
         poseStack.pushPose();
         poseStack.scale(-globalScale, -globalScale, globalScale);
-        // Background
-        /*if (false) { //CONF
-            float padding = 2;// CONF
-            int bgHeight = 6;//CONF
-            VertexConsumer builder = buffers.getBuffer(BAR_TEXTURE_TYPE);
-            builder.vertex(poseStack.last().pose(), -halfSize - padding, -bgHeight, 0.01F).color(0, 0, 0, 64).uv(0.0F, 0.0F).uv2(light).endVertex();
-            builder.vertex(poseStack.last().pose(), -halfSize - padding, barHeight + padding, 0.01F).color(0, 0, 0, 64).uv(0.0F, 0.5F).uv2(light).endVertex();
-            builder.vertex(poseStack.last().pose(), halfSize + padding, barHeight + padding, 0.01F).color(0, 0, 0, 64).uv(1.0F, 0.5F).uv2(light).endVertex();
-            builder.vertex(poseStack.last().pose(), halfSize + padding, -bgHeight, 0.01F).color(0, 0, 0, 64).uv(1.0F, 0.0F).uv2(light).endVertex();
-        }*/
+
         // Health Bar
         // 24 is a nice number; not sure what to actually multiply by to match bb dimensions
         final BarProperties properties = new BarProperties(
@@ -210,7 +201,7 @@ public class HealthBarRenderer {
                 200,
                 0xF000F0
         );
-        final HealthBarCapability cap = CapabilityRegistry.getCapability(living, CapabilityRegistry.HEALTH_BAR_CAPABILITY);
+        final HealthBarCapability cap = CapabilityHandler.getCapability(living, CapabilityHandler.HEALTH_BAR_CAPABILITY);
 
         assert cap != null;
 
@@ -292,22 +283,22 @@ public class HealthBarRenderer {
             RenderSystem.enableBlend();
 
             // Render an icon for each aura applied to the entity TODO: blur maybe should be split off into different loop to avoid switching th textures literally constantly
-            cap.iconRenderQueue.entrySet().forEach((entry) -> {
+            cap.iconRenderQueue.forEach((aura, icon) -> {
 
                 // Center each icon with padding
-                float xOffset = ((iconSize + 2f) * (i.get() - ((aurasSize/2f) - 0.5f)));
-                final int iconColor = entry.getKey().getColor();
+                float xOffset = ((iconSize + 2f) * (i.get() - ((aurasSize / 2f) - 0.5f)));
+                final int iconColor = aura.getColor();
 
                 // Render a slight glow effect behind icon
                 final VertexConsumer blurBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(new ResourceLocation(ProjectAura.MOD_ID, "textures/ui/blur.png")));
-                RenderUtil.renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, new Vector3f(xOffset, 0,0.01F), iconColor, 130, properties.light);
+                RenderUtil.renderColoredTexture(poseStack, blurBuilder, iconSize * 1.25F, new Vector3f(xOffset, 0, 0.01F), iconColor, 130, properties.light);
 
                 // Render icon
-                final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(entry.getKey().getIcon()));
-                RenderUtil.renderColoredTexture(poseStack, iconBuilder, iconSize, new Vector3f(xOffset, 0, 0F), iconColor, entry.getValue().getAlpha(), properties.light);
+                final VertexConsumer iconBuilder = buffers.getBuffer(ProjectAuraRenderType.coloredTexType(aura.getIcon()));
+                RenderUtil.renderColoredTexture(poseStack, iconBuilder, iconSize, new Vector3f(xOffset, 0, 0F), iconColor, icon.getAlpha(), properties.light);
 
                 //renderAuraIcon(poseStack, iconBuilder, 16, xOffset);
-                ArrayList<Effect> effects = entry.getValue().getEffects();
+                ArrayList<Effect> effects = icon.getEffects();
 
                 effects.forEach(effect -> {
 
@@ -363,6 +354,7 @@ public class HealthBarRenderer {
         poseStack.popPose();
     }
 
+    // TODO: bad code here
     private record BarProperties(float barLength, float barHeight, float capOffset, int alpha, int light) {
 
         public static float bodyLength; //actually half

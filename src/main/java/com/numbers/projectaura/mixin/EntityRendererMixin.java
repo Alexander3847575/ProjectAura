@@ -1,7 +1,7 @@
 package com.numbers.projectaura.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.capability.CapabilityHandler;
 import com.numbers.projectaura.render.HealthBarRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -34,7 +34,7 @@ public abstract class EntityRendererMixin {
         )
     )
     private void auraRender(Entity entity, double worldX, double worldY, double worldZ, float entityYRot, float partialTicks, PoseStack poseStack, MultiBufferSource buffers, int light, CallbackInfo ci) {
-        if (CapabilityRegistry.getCapability(entity, CapabilityRegistry.HEALTH_BAR_CAPABILITY) != null) {
+        if (CapabilityHandler.getCapability(entity, CapabilityHandler.HEALTH_BAR_CAPABILITY) != null) {
             HealthBarRenderer.hookRender(entity, poseStack, buffers, cameraOrientation());
         }
     }

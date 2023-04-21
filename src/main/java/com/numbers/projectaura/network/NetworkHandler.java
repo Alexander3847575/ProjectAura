@@ -1,8 +1,6 @@
-package com.numbers.projectaura.registries;
+package com.numbers.projectaura.network;
 
 import com.numbers.projectaura.ProjectAura;
-import com.numbers.projectaura.network.AuraSyncMessage;
-import com.numbers.projectaura.network.ElementalReactionMessage;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkEvent;
@@ -12,7 +10,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class NetworkRegistry {
+public class NetworkHandler {
     private static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel INSTANCE = net.minecraftforge.network.NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ProjectAura.MOD_ID, "main"),

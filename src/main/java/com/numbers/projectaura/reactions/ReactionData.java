@@ -23,14 +23,13 @@ public class ReactionData {
     private double outputAppliedStrength;
     private double outputBaseStrength;
 
-    private float damage;
+    private float inputDamage;
+    private float outputDamage;
 
     @Nullable
     private IElementalReaction<?, ?> reaction;
     private boolean failed;
 
     private LivingEntity target;
-
-
 
 }

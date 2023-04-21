@@ -3,7 +3,7 @@ package com.numbers.projectaura.network;
 import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.capability.AuraCapability;
 import com.numbers.projectaura.registries.AuraRegistry;
-import com.numbers.projectaura.registries.CapabilityRegistry;
+import com.numbers.projectaura.capability.CapabilityHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -82,10 +82,10 @@ public class AuraSyncMessage {
                     return;
                 }
 
-                AuraCapability auraCapability = CapabilityRegistry.getCapability(living, CapabilityRegistry.AURA_CAPABILITY);
+                AuraCapability auraCapability = CapabilityHandler.getCapability(living, CapabilityHandler.AURA_CAPABILITY);
 
                 assert auraCapability != null;
-                auraCapability.auras = message.auras;
+                auraCapability.setAuras(message.auras);
 
             });
 

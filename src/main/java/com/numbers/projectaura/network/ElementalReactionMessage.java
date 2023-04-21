@@ -33,7 +33,7 @@ public class ElementalReactionMessage {
     public static void serialize(final ElementalReactionMessage message, final FriendlyByteBuf buf) {
         buf.writeVarInt(message.entityID);
         String out = "";
-        out += AuraRegistry.AURAS.get().getResourceKey(message.reactionData.getAppliedAura()).get().location() + ";" + AuraRegistry.AURAS.get().getResourceKey(message.reactionData.getBaseAura()).get().location() + ";" + message.reactionData.getDamage();
+        out += AuraRegistry.AURAS.get().getResourceKey(message.reactionData.getAppliedAura()).get().location() + ";" + AuraRegistry.AURAS.get().getResourceKey(message.reactionData.getBaseAura()).get().location() + ";" + message.reactionData.getOutputDamage();
         buf.writeUtf(out);
     }
 
@@ -52,7 +52,7 @@ public class ElementalReactionMessage {
         message.reactionData = ReactionData.builder()
                 .appliedAura(AuraRegistry.AURAS.get().getValue(new ResourceLocation(data[0])))
                 .baseAura(AuraRegistry.AURAS.get().getValue(new ResourceLocation(data[1])))
-                .damage(Float.parseFloat(data[2]))
+                .outputDamage(Float.parseFloat(data[2]))
                 .build();
 
         return message;

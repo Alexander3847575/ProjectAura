@@ -1,12 +1,10 @@
 package com.numbers.projectaura;
 
 import com.mojang.logging.LogUtils;
+import com.numbers.projectaura.capability.CapabilityHandler;
 import com.numbers.projectaura.event.EventHandler;
-import com.numbers.projectaura.registries.NetworkRegistry;
-import com.numbers.projectaura.registries.AuraRegistry;
-import com.numbers.projectaura.registries.CapabilityRegistry;
-import com.numbers.projectaura.registries.ItemRegistry;
-import com.numbers.projectaura.registries.ReactionRegistry;
+import com.numbers.projectaura.network.NetworkHandler;
+import com.numbers.projectaura.registries.*;
 import com.tterrag.registrate.Registrate;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
@@ -41,22 +39,23 @@ public final class ProjectAura {
 
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        // Register custom aura and reaction registry
+        // Register custom aura and environmental applicator registry
         AuraRegistry.AURA_REGISTRY.register(bus);
+        EnvironmentalApplicatorRegistry.ENVIRONMENTAL_APPLICATOR_REGISTRY.register(bus);
 
         // Register all items
         ItemRegistry.register();
 
-        new NetworkRegistry().registerPackets();
+        new NetworkHandler().registerPackets();
 
         bus.addListener(EventPriority.LOWEST, ProjectAura::gatherData);
         bus.addListener(EventPriority.LOW, ProjectAura::registerReactions);
-        bus.addListener(CapabilityRegistry::registerCapabilities);
+        bus.addListener(CapabilityHandler::registerCapabilities);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new EventHandler());
-        MinecraftForge.EVENT_BUS.addGenericListener(Entity.class, CapabilityRegistry::attachEntityCapability);
+        MinecraftForge.EVENT_BUS.addGenericListener(Entity.class, CapabilityHandler::attachEntityCapability);
 
     }
 
