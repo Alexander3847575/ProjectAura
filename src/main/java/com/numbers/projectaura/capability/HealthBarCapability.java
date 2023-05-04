@@ -10,17 +10,20 @@ import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.event.ElementalReactionEvent;
 import com.numbers.projectaura.event.EventHandler;
 import com.numbers.projectaura.render.RenderUtil;
-import com.numbers.projectaura.render.ui.AuraIcon;
+import com.numbers.projectaura.ui.AuraIcon;
+import com.numbers.projectaura.ui.DamageNumberParticle;
 import lombok.Getter;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -86,21 +89,22 @@ public class HealthBarCapability {
     private static final long ICON_APPLY_ANIMATION_DURATION = 250L;
     private static final Function<ResourceLocation, ExpandAndFadeEffect> IconApplyEffect = (texture) -> new ExpandAndFadeEffect(
              texture,
-             16,
+             16f,
              2f,
              ICON_APPLY_ANIMATION_DURATION,
-             50,
+             50L,
              WHITE,
              255,
              0xF000F0
      );
 
+    private static final long REACTION_ANIMATION_DURATION = 400L;
     private static final BiFunction<ResourceLocation, Integer, ExpandAndFadeEffect> REACTION_ICON_EFFECT = (texture, color) -> new ExpandAndFadeEffect(
             texture,
-            32,
+            32f,
              -0.5f,
-            ICON_APPLY_ANIMATION_DURATION,
-            50,
+            REACTION_ANIMATION_DURATION,
+            50L,
             new AnimationComponent(new Eases.Ease(Eases.COLOR_CUBIC_EASE_IN, WHITE, color, ICON_APPLY_ANIMATION_DURATION), 0),
             255,
             0xF000F0
@@ -111,17 +115,30 @@ public class HealthBarCapability {
             REACTION_SHOCK_TEXTURE,
             16f,
             2f,
-            500L,
+            REACTION_ANIMATION_DURATION,
             0,
             WHITE,
             255,
             0xF000F0
     );
 
+    private static final DecimalFormat DF = new DecimalFormat("#.##");
+
 
     // Aura, aura value, animation id
     public LinkedHashMap<IElementalAura, AuraIcon> iconRenderQueue = new LinkedHashMap<>();
     public LinkedHashMap<IElementalAura, Double> internalAuraBuffer = new LinkedHashMap<>();
+
+    private LivingEntity attachedEntity;
+    private boolean showDamageIndicators;
+
+
+    public HealthBarCapability(LivingEntity attachedEntity) {
+        this.attachedEntity = attachedEntity;
+        this.prevHealth = Math.min(attachedEntity.getHealth(), attachedEntity.getMaxHealth());
+        this.updateHealthValues(); // This is done so that the entity will not display damage particles when initially loaded
+        this.showDamageIndicators = !((attachedEntity instanceof Slime) && ((Slime) attachedEntity).getSize() == 1);
+    }
 
     /**
      * Called on LivingEntityTickEvent in {@link EventHandler}. Client side only.
@@ -129,22 +146,36 @@ public class HealthBarCapability {
      * In addition, it detects changes in health, so it can trigger the buffer animation, and eventually damage indicators.
      * @param entity Entity being ticked
      */
-    public void tick(LivingEntity entity) {
-        this.tickHealth(entity);
-        this.tickAuras(entity);
+    public void tick() {
+        this.tickHealth();
+        this.tickAuras();
 
     }
 
-    private void tickHealth(LivingEntity entity) {
-        float health = entity.getHealth();
+    private void tickHealth() {
+
+        float health = attachedEntity.getHealth();
 
         // No need to update healthRatios if it's the same, this way we trade a simple check and some variables for div operation and such?
         if (health == this.prevHealth) {
             return;
         }
 
+        float damageTaken = this.updateHealthValues();
+
+        //TODO: Move to mixin to get true damage; use flags and stored data in the capability to determine elemental damage type
+        // (because the hurt method is called immediately when elemental damage is applied, you can pretty much guarantee that the flag will be accurate, an then unset it immediately after spawning the particle).
+        if (damageTaken != 0 && this.showDamageIndicators)
+            attachedEntity.level.addParticle(new DamageNumberParticle.DamageParticleOptions(String.valueOf(DF.format(damageTaken)), WHITE, false), attachedEntity.getX(), attachedEntity.getY() + attachedEntity.getBbHeight()/2, attachedEntity.getZ(), 0, 0, 0);
+
+    }
+
+    private float updateHealthValues() {
+
+        float health = this.attachedEntity.getHealth();
+
         // There are scenarios in vanilla where the current health can temporarily exceed the max health
-        float maxHealth = Math.max(entity.getHealth(), entity.getMaxHealth());
+        float maxHealth = Math.max(this.attachedEntity.getHealth(), this.attachedEntity.getMaxHealth());
         this.healthPercent = (health / maxHealth) * 100; // Update the % health of the entity
 
         float damageTaken = this.prevHealth - health;
@@ -157,18 +188,18 @@ public class HealthBarCapability {
 
         this.prevHealth = health;
 
-        //TODO: Reference ToroHealthBar to start creating the elemental damage indicators here?
-        //  dev mods to reduce or eliminate build time
+        return damageTaken;
+
     }
 
-    public void tickAuras(LivingEntity entity) {
+    public void tickAuras() {
 
-        AuraCapability auraCapability = CapabilityHandler.getCapability(entity, CapabilityHandler.AURA_CAPABILITY);
+        AuraCapability auraCapability = CapabilityHandler.getCapability(this.attachedEntity, CapabilityHandler.AURA_CAPABILITY);
         assert auraCapability != null; // All living entities should have this capability
 
-        Iterator<Map.Entry<IElementalAura, Double>> iterator = auraCapability.getAuras().entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<IElementalAura, Double> aura = iterator.next();
+        Iterator<Map.Entry<IElementalAura, Double>> auraCapabilityIterator = auraCapability.getAuras().entrySet().iterator();
+        while (auraCapabilityIterator.hasNext()) {
+            Map.Entry<IElementalAura, Double> aura = auraCapabilityIterator.next();
 
             // When the entity receives a new aura
             if (!this.internalAuraBuffer.containsKey(aura.getKey())) {
@@ -306,7 +337,11 @@ public class HealthBarCapability {
     }
 
     public static class HealthBarCapabilityProvider implements ICapabilityProvider {
-        private final LazyOptional<HealthBarCapability> instance = LazyOptional.of(HealthBarCapability::new);
+        private final LazyOptional<HealthBarCapability> instance;
+
+        public HealthBarCapabilityProvider(LivingEntity attachedEntity) {
+            this.instance = LazyOptional.of(() -> new HealthBarCapability(attachedEntity));
+        }
 
         @Override
         public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {

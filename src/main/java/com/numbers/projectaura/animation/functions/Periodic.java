@@ -8,7 +8,7 @@ public final class Periodic {
         float get(float t, float p, float a);
     }
 
-    public static PeriodicFunction SINE = (t, p, a) -> ((float) Math.sin((t % p) / (p * Math.PI)) * 2f * a) - a;
+    public static PeriodicFunction SINE = (t, p, a) -> ((float) Math.sin((t *  Math.PI)/ (p/2)) * a);
 
     public static class PeriodicAnimation implements IAnimationFunction {
         private float period;

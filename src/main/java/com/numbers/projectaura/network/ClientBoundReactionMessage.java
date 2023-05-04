@@ -1,7 +1,6 @@
 package com.numbers.projectaura.network;
 
 import com.numbers.projectaura.event.ElementalReactionEvent;
-import com.numbers.projectaura.reactions.IElementalReaction;
 import com.numbers.projectaura.reactions.ReactionData;
 import com.numbers.projectaura.registries.AuraRegistry;
 import com.numbers.projectaura.registries.ReactionRegistry;
@@ -15,30 +14,30 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-public class ElementalReactionMessage {
+public class ClientBoundReactionMessage {
 
     private int entityID;
     private ReactionData reactionData;
 
-    public ElementalReactionMessage() {
+    public ClientBoundReactionMessage() {
         this.entityID = 0;
         this.reactionData = ReactionData.builder().build();
     }
 
-    public ElementalReactionMessage(LivingEntity entity, ReactionData reactionData) {
+    public ClientBoundReactionMessage(LivingEntity entity, ReactionData reactionData) {
         this.entityID = entity.getId();
         this.reactionData = reactionData;
     }
 
-    public static void serialize(final ElementalReactionMessage message, final FriendlyByteBuf buf) {
+    public static void serialize(final ClientBoundReactionMessage message, final FriendlyByteBuf buf) {
         buf.writeVarInt(message.entityID);
         String out = "";
         out += AuraRegistry.AURAS.get().getResourceKey(message.reactionData.getAppliedAura()).get().location() + ";" + AuraRegistry.AURAS.get().getResourceKey(message.reactionData.getBaseAura()).get().location() + ";" + message.reactionData.getOutputDamage();
         buf.writeUtf(out);
     }
 
-    public static ElementalReactionMessage deserialize(final FriendlyByteBuf buf) {
-        final ElementalReactionMessage message = new ElementalReactionMessage();
+    public static ClientBoundReactionMessage deserialize(final FriendlyByteBuf buf) {
+        final ClientBoundReactionMessage message = new ClientBoundReactionMessage();
         message.entityID = buf.readVarInt();
         String raw = buf.readUtf();
 
@@ -55,13 +54,15 @@ public class ElementalReactionMessage {
                 .outputDamage(Float.parseFloat(data[2]))
                 .build();
 
+        message.reactionData.setReaction(ReactionRegistry.getReaction(message.reactionData.getAppliedAura(), message.reactionData.getBaseAura()));
+
         return message;
     }
 
 
-    public static class Handler implements BiConsumer<ElementalReactionMessage, Supplier<NetworkEvent.Context>> {
+    public static class Handler implements BiConsumer<ClientBoundReactionMessage, Supplier<NetworkEvent.Context>> {
         @Override
-        public void accept(final ElementalReactionMessage message, final Supplier<NetworkEvent.Context> contextSupplier) {
+        public void accept(final ClientBoundReactionMessage message, final Supplier<NetworkEvent.Context> contextSupplier) {
 
             final NetworkEvent.Context context = contextSupplier.get();
 
@@ -77,11 +78,7 @@ public class ElementalReactionMessage {
                     return;
                 }
 
-                IElementalReaction<?, ?> reaction = ReactionRegistry.getReaction(message.reactionData.getAppliedAura(), message.reactionData.getBaseAura());
-
-                assert reaction != null;
-
-                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(living, reaction, message.reactionData));
+                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(living, message.reactionData));
 
             });
 

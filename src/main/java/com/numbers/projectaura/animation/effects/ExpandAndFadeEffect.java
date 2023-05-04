@@ -13,6 +13,7 @@ import org.joml.Vector3f;
 public class ExpandAndFadeEffect extends Effect {
 
     private float animationScale;
+    //TODO: ExpandAndFadeAnimation then make Effect a functional itnerface
 
     public ExpandAndFadeEffect(ResourceLocation texture, float effectSize, float animationScale, long animationDuration, long animationDelay, AnimationComponent color, int alpha, int light) {
         super(
@@ -21,7 +22,7 @@ public class ExpandAndFadeEffect extends Effect {
                         .addComponent(
                                 new AnimationComponent(
                                         new Eases.Ease(
-                                                Eases.CUBIC_EASE_OUT,
+                                                Eases.EXPONENTIAL_EASE_OUT,
                                                 1,
                                                 animationScale,
                                                 animationDuration - animationDelay

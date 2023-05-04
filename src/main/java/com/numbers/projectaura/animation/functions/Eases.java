@@ -90,7 +90,14 @@ public final class Eases {
     };
 
     // Exponential interpolations
-    public static final EaseMethod EXPONENTIAL_EASE = (t, b, c, d) -> (t==0) ? b : c * (float)Math.pow(2, 10 * (t/d - 1)) + b;
+    public static final EaseMethod EXPONENTIAL_EASE_IN = (t, b, c, d) -> (t==0) ? b : c * (float)Math.pow(2, 10 * (t/d - 1)) + b;
+    public static final EaseMethod EXPONENTIAL_EASE_OUT = (t, b, c, d) -> (t==d) ? b+c : c * (-(float)Math.pow(2, -10 * t/d) + 1) + b;
+    public static final EaseMethod EXPONENTIAL_EASE_IN_OUT = (t, b, c, d) -> {
+        if (t==0) return b;
+        if (t==d) return b+c;
+        if ((t/=d/2) < 1) return c/2 * (float)Math.pow(2, 10 * (t - 1)) + b;
+        return c/2 * (-(float)Math.pow(2, -10 * --t) + 2) + b;
+    };
 
     // Lazy RGB color interpolations
     public static final EaseMethod COLOR_LINEAR_EASE = (t, b, c, d) -> ColorEase.ease(t, (int) b, (int) c, d, LINEAR_EASE);

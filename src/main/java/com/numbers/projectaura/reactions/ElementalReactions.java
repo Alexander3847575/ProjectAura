@@ -24,12 +24,22 @@ public class ElementalReactions {
 
         @Override
         public Supplier<IElementalAura> getApplied() {
-            return () -> AuraRegistry.FIRE.get();
+            return AuraRegistry.FIRE::get;
         }
 
         @Override
         public Supplier<IElementalAura> getBase() {
-            return () -> AuraRegistry.WATER.get();
+            return AuraRegistry.WATER::get;
+        }
+
+        @Override
+        public String getName() {
+            return "Vaporize";
+        }
+
+        @Override
+        public int getColor() {
+            return AuraRegistry.WATER.get().getColor();
         }
 
     }
@@ -45,12 +55,22 @@ public class ElementalReactions {
 
         @Override
         public Supplier<IElementalAura> getApplied() {
-            return () -> AuraRegistry.WATER.get();
+            return AuraRegistry.WATER::get;
         }
 
         @Override
         public Supplier<IElementalAura> getBase() {
-            return () -> AuraRegistry.FIRE.get();
+            return AuraRegistry.FIRE::get;
+        }
+
+        @Override
+        public String getName() {
+            return "Vaporize";
+        }
+
+        @Override
+        public int getColor() {
+            return AuraRegistry.WATER.get().getColor();
         }
 
     }

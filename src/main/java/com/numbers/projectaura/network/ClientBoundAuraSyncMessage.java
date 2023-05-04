@@ -17,23 +17,23 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-public class AuraSyncMessage {
+public class ClientBoundAuraSyncMessage {
 
     private int entityID;
     private boolean isFrozen;
     private LinkedHashMap<IElementalAura, Double> auras;
 
-    public AuraSyncMessage() {
+    public ClientBoundAuraSyncMessage() {
         this.entityID = 0;
         this.auras = new LinkedHashMap<>();
     }
 
-    public AuraSyncMessage(LivingEntity entity, LinkedHashMap<IElementalAura, Double> auras) {
+    public ClientBoundAuraSyncMessage(LivingEntity entity, LinkedHashMap<IElementalAura, Double> auras) {
         this.entityID = entity.getId();
         this.auras = auras;
     }
 
-    public static void serialize(final AuraSyncMessage message, final FriendlyByteBuf buf) {
+    public static void serialize(final ClientBoundAuraSyncMessage message, final FriendlyByteBuf buf) {
         buf.writeVarInt(message.entityID);
         String out = "";
         for (Map.Entry<IElementalAura, Double> aura : message.auras.entrySet()) {
@@ -44,8 +44,8 @@ public class AuraSyncMessage {
         buf.writeUtf(out);
     }
 
-    public static AuraSyncMessage deserialize(final FriendlyByteBuf buf) {
-        final AuraSyncMessage message = new AuraSyncMessage();
+    public static ClientBoundAuraSyncMessage deserialize(final FriendlyByteBuf buf) {
+        final ClientBoundAuraSyncMessage message = new ClientBoundAuraSyncMessage();
         message.entityID = buf.readVarInt();
         String raw = buf.readUtf();
 
@@ -64,9 +64,9 @@ public class AuraSyncMessage {
         return message;
     }
 
-    public static class Handler implements BiConsumer<AuraSyncMessage, Supplier<NetworkEvent.Context>> {
+    public static class Handler implements BiConsumer<ClientBoundAuraSyncMessage, Supplier<NetworkEvent.Context>> {
         @Override
-        public void accept(final AuraSyncMessage message, final Supplier<NetworkEvent.Context> contextSupplier) {
+        public void accept(final ClientBoundAuraSyncMessage message, final Supplier<NetworkEvent.Context> contextSupplier) {
 
             final NetworkEvent.Context context = contextSupplier.get();
 

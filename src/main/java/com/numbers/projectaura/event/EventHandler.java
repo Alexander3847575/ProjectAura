@@ -1,10 +1,11 @@
 package com.numbers.projectaura.event;
 
 import com.numbers.projectaura.capability.AuraCapability;
-import com.numbers.projectaura.capability.HealthBarCapability;
-import com.numbers.projectaura.network.ElementalReactionMessage;
 import com.numbers.projectaura.capability.CapabilityHandler;
+import com.numbers.projectaura.capability.HealthBarCapability;
+import com.numbers.projectaura.network.ClientBoundReactionMessage;
 import com.numbers.projectaura.network.NetworkHandler;
+import com.numbers.projectaura.ui.DamageNumberParticle;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
@@ -23,7 +24,7 @@ public class EventHandler {
            HealthBarCapability healthBarCapability = CapabilityHandler.getCapability(entity, CapabilityHandler.HEALTH_BAR_CAPABILITY);
 
            if (healthBarCapability != null) {
-               healthBarCapability.tick(entity);
+               healthBarCapability.tick();
            }
 
        } else {
@@ -56,14 +57,18 @@ public class EventHandler {
 
         if (!event.getLivingEntity().level.isClientSide()) {
             // Reroute to client
-            NetworkHandler.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(event::getLivingEntity), new ElementalReactionMessage(event.getLivingEntity(), event.getReactionData()));
+            NetworkHandler.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(event::getLivingEntity), new ClientBoundReactionMessage(event.getLivingEntity(), event.getReactionData()));
             return;
         }
+
+        LivingEntity entity = event.getLivingEntity();;
 
         HealthBarCapability healthBarCapability = CapabilityHandler.getCapability(event.getLivingEntity(), CapabilityHandler.HEALTH_BAR_CAPABILITY);
 
         assert healthBarCapability != null;
         healthBarCapability.onReaction(event);
+
+        entity.level.addParticle(new DamageNumberParticle.DamageParticleOptions(event.getReactionData().getReaction().getName(), event.getReactionData().getReaction().getColor(), false), entity.getX(), entity.getY(), entity.getZ(), 420, 1, 1);
 
     }
 

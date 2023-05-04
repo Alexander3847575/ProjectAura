@@ -5,7 +5,7 @@ import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.auras.applicator.ApplicationInstance;
 import com.numbers.projectaura.auras.applicator.ApplicationType;
 import com.numbers.projectaura.event.ElementalReactionEvent;
-import com.numbers.projectaura.network.AuraSyncMessage;
+import com.numbers.projectaura.network.ClientBoundAuraSyncMessage;
 import com.numbers.projectaura.network.NetworkHandler;
 import com.numbers.projectaura.reactions.IElementalReaction;
 import com.numbers.projectaura.reactions.ReactionData;
@@ -133,6 +133,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
                             .inputBaseStrength(aura.getValue())
                             .inputDamage(applicationInstance.damage())
                             .target(this.attachedEntity)
+                            .reaction(reaction)
                             .build());
 
             // No need to update aura values or anything if the reaction failed
@@ -140,7 +141,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
                 continue;
             }
 
-            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(this.attachedEntity, reaction, result));
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new ElementalReactionEvent(this.attachedEntity, result));
 
             damage = result.getOutputDamage();
             double outputBaseStrength = result.getOutputBaseStrength();
@@ -223,7 +224,7 @@ public class AuraCapability implements INBTSerializable<CompoundTag> {
      * Sends an update packet to all clients tracking the entity.
      */
     private void sendAuraUpdatePackets(LivingEntity entity) {
-        NetworkHandler.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), new AuraSyncMessage(entity, this.auras));
+        NetworkHandler.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), new ClientBoundAuraSyncMessage(entity, this.auras));
 
     }
 

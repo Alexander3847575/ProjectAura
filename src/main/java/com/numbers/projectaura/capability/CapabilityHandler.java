@@ -29,7 +29,7 @@ public class CapabilityHandler {
 
             // Only add the health bar thing on the client
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                e.addCapability(HealthBarCapability.ID, new HealthBarCapability.HealthBarCapabilityProvider());
+                e.addCapability(HealthBarCapability.ID, new HealthBarCapability.HealthBarCapabilityProvider((LivingEntity) e.getObject()));
             });
         }
     }

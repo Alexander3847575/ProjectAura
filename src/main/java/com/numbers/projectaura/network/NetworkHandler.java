@@ -20,9 +20,11 @@ public class NetworkHandler {
     );
     private int nextMessageID = 0;
 
+    // TODO: make interface for packets to simplify registration
     public void registerPackets() {
-        this.registerPacket(AuraSyncMessage.class, AuraSyncMessage::serialize, AuraSyncMessage::deserialize, new AuraSyncMessage.Handler());
-        this.registerPacket(ElementalReactionMessage.class, ElementalReactionMessage::serialize, ElementalReactionMessage::deserialize, new ElementalReactionMessage.Handler());
+        this.registerPacket(ClientBoundAuraSyncMessage.class, ClientBoundAuraSyncMessage::serialize, ClientBoundAuraSyncMessage::deserialize, new ClientBoundAuraSyncMessage.Handler());
+        this.registerPacket(ClientBoundReactionMessage.class, ClientBoundReactionMessage::serialize, ClientBoundReactionMessage::deserialize, new ClientBoundReactionMessage.Handler());
+        this.registerPacket(ClientBoundTextEffectMessage.class, ClientBoundTextEffectMessage::serialize, ClientBoundTextEffectMessage::deserialize, new ClientBoundTextEffectMessage.Handler());
     }
 
     public <T> void registerPacket(final Class<T> message, final BiConsumer<T, FriendlyByteBuf> encoder, Function<FriendlyByteBuf, T> decoder, BiConsumer<T, Supplier<NetworkEvent.Context>> handler) {

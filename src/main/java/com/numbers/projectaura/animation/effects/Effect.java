@@ -17,6 +17,7 @@ import org.joml.Vector3f;
  * This class effectively wraps an {@link Animation}, texture, and render method to allow repeatable render code to be offloaded from the main render body to neat little objects.
  */
 public class Effect {
+    // TODO: convert to a functional interface?
     @Getter
     protected Animation animation;
     @Getter

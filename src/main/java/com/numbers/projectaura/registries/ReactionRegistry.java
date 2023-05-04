@@ -41,7 +41,7 @@ public class ReactionRegistry {
                         throw new IllegalArgumentException("Registry already contains an entry: " + name.toString());
                 }
 
-                registered.put(applied, new Tuple<ResourceLocation, IElementalReaction<?, ?>>(name , reaction));
+                registered.put(applied, new Tuple<>(name, reaction));
 
                 return new Tuple<>(name, reaction);
         }

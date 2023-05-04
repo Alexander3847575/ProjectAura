@@ -42,6 +42,7 @@ public final class ProjectAura {
         // Register custom aura and environmental applicator registry
         AuraRegistry.AURA_REGISTRY.register(bus);
         EnvironmentalApplicatorRegistry.ENVIRONMENTAL_APPLICATOR_REGISTRY.register(bus);
+        ParticleRegistry.PARTICLE_TYPE_REGISTRY.register(bus);
 
         // Register all items
         ItemRegistry.register();
@@ -56,7 +57,6 @@ public final class ProjectAura {
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new EventHandler());
         MinecraftForge.EVENT_BUS.addGenericListener(Entity.class, CapabilityHandler::attachEntityCapability);
-
     }
 
     // idk it just needs to run after aura registration

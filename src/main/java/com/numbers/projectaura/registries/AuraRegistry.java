@@ -5,7 +5,10 @@ import com.numbers.projectaura.auras.FireAura;
 import com.numbers.projectaura.auras.IElementalAura;
 import com.numbers.projectaura.auras.WaterAura;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.registries.*;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.IForgeRegistry;
+import net.minecraftforge.registries.RegistryBuilder;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.util.function.Supplier;
 
@@ -15,6 +18,5 @@ public class AuraRegistry {
 
     public static final RegistryObject<FireAura> FIRE = AURA_REGISTRY.register("fire", FireAura::new);
     public static final RegistryObject<WaterAura> WATER = AURA_REGISTRY.register("water", WaterAura::new);
-
 
 }

@@ -1,4 +1,4 @@
-package com.numbers.projectaura.render.ui;
+package com.numbers.projectaura.ui;
 
 import com.numbers.projectaura.animation.Animation;
 import com.numbers.projectaura.animation.AnimationComponent;
@@ -25,8 +25,8 @@ public class AuraIcon {
                     new AnimationComponent(
                             new Periodic.PeriodicAnimation(
                                     Periodic.SINE,
-                                    600,
-                                    100,
+                                    500,
+                                    110,
                                     99999
                             ),
                             99999
@@ -75,7 +75,7 @@ public class AuraIcon {
         if (!this.fadeAnimation.isActive())
             return 255;
 
-        return Math.round(this.fadeAnimation.getComponentValue(0) + 150);
+        return Math.round(this.fadeAnimation.getComponentValue(0) + 130);
     }
 
 }
